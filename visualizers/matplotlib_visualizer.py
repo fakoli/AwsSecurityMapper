@@ -3,6 +3,7 @@ import networkx as nx
 import matplotlib
 matplotlib.use('Agg')  # Set non-interactive backend before importing pyplot
 import matplotlib.pyplot as plt
+import numpy as np
 from typing import Dict, List, Optional, Set, Tuple
 from .base import BaseVisualizer
 from utils import format_ports, get_friendly_cidr_name, logger
@@ -19,8 +20,8 @@ class MatplotlibVisualizer(BaseVisualizer):
         self.node_size = self.settings.get('node_size', 2000)
         self.font_size = self.settings.get('font_size', 8)
         self.edge_width = self.settings.get('edge_width', 1)
-        self.vpc_spacing = 4.0
-        self.vpc_padding = 1.0
+        self.vpc_spacing = self.settings.get('vpc_spacing', 4.0)
+        self.vpc_padding = self.settings.get('vpc_padding', 1.0)
         self.pos = None
         self.edge_styles = {
             'same_vpc': {'color': '#404040', 'style': 'solid', 'width': 1.2},
@@ -64,7 +65,7 @@ class MatplotlibVisualizer(BaseVisualizer):
         if protocol == '-1':
             protocol = 'All'
 
-        # Handle security group references
+        # Process security group references
         for group_pair in permission.get('UserIdGroupPairs', []):
             source_id = group_pair.get('GroupId')
             source_vpc = group_pair.get('VpcId', 'Unknown VPC')
@@ -72,33 +73,40 @@ class MatplotlibVisualizer(BaseVisualizer):
             if source_id:
                 if source_id not in self.graph:
                     self.graph.add_node(source_id,
-                                        name=f"Security Group {source_id}",
-                                        description="Referenced Security Group",
-                                        vpc_id=source_vpc,
-                                        type='security_group',
-                                        is_highlighted=source_id == self.highlight_sg)
+                                      name=f"Security Group {source_id}",
+                                      description="Referenced Security Group",
+                                      vpc_id=source_vpc,
+                                      type='security_group',
+                                      is_highlighted=source_id == self.highlight_sg)
+
+                # Format connection label with protocol and port info
+                connection_info = f"INGRESS/{protocol}/{port_info}"
 
                 is_cross_vpc = vpc_id != source_vpc and source_vpc != 'Unknown VPC'
                 self.graph.add_edge(source_id, target_group_id,
-                                    label=f"INGRESS/{protocol}/{port_info}",
-                                    protocol=protocol,
-                                    ports=port_info,
-                                    is_cross_vpc=is_cross_vpc,
-                                    direction='ingress')
+                                  label=connection_info,
+                                  protocol=protocol,
+                                  ports=port_info,
+                                  is_cross_vpc=is_cross_vpc,
+                                  direction='ingress')
 
-        # Handle CIDR ranges
+        # Process CIDR ranges
         for ip_range in permission.get('IpRanges', []):
             cidr = ip_range.get('CidrIp')
             if cidr:
                 friendly_name = get_friendly_cidr_name(cidr)
                 cidr_node = f"CIDR: {friendly_name}"
+
+                # Format connection label with protocol and port info
+                connection_info = f"INGRESS/{protocol}/{port_info}"
+
                 self.graph.add_node(cidr_node, name=friendly_name, type='cidr')
                 self.graph.add_edge(cidr_node, target_group_id,
-                                    label=f"INGRESS/{protocol}/{port_info}",
-                                    protocol=protocol,
-                                    ports=port_info,
-                                    is_cross_vpc=False,
-                                    direction='ingress')
+                                  label=connection_info,
+                                  protocol=protocol,
+                                  ports=port_info,
+                                  is_cross_vpc=False,
+                                  direction='ingress')
 
     def generate_visualization(self, output_path: str, title: Optional[str] = None) -> None:
         """Generate and save the graph visualization using matplotlib."""
@@ -235,7 +243,7 @@ class MatplotlibVisualizer(BaseVisualizer):
 
     def _draw_edges(self) -> None:
         """Draw edges with proper styling and arrows."""
-        if not self.pos or not self.graph.edges():
+        if not self.graph.edges():
             return
 
         edge_groups = {
@@ -253,37 +261,57 @@ class MatplotlibVisualizer(BaseVisualizer):
             mid_x = (x0 + x1) / 2
             mid_y = (y0 + y1) / 2
 
-            # Calculate perpendicular offset for text placement
+            # Calculate edge angle and adjust for label readability
             dx = x1 - x0
             dy = y1 - y0
-            length = (dx * dx + dy * dy) ** 0.5
+            angle = np.arctan2(dy, dx) * 180 / np.pi
+
+            # Ensure text is always readable (not upside down)
+            if angle > 90 or angle < -90:
+                angle += 180
+                dx = -dx
+                dy = -dy
+
+            # Calculate perpendicular offset for text placement
+            length = np.sqrt(dx * dx + dy * dy)
             if length > 0:
                 offset_x = -dy / length * 0.6
                 offset_y = dx / length * 0.6
             else:
                 offset_x = offset_y = 0
 
-            # Add the connection label (INGRESS/protocol/port)
+            style = self.edge_styles[edge_type]
+
+            # Draw connecting line from edge to label
+            plt.plot([mid_x, mid_x + offset_x], [mid_y, mid_y + offset_y],
+                    color=style['color'],
+                    linestyle=style['style'],
+                    alpha=0.5,
+                    linewidth=0.5)
+
+            # Add edge label with enhanced visibility
+            connection_info = d.get('label', '')
             plt.annotate(
-                d.get('label', ''),
+                connection_info,
                 xy=(mid_x, mid_y),
                 xytext=(mid_x + offset_x, mid_y + offset_y),
+                rotation=angle,
                 ha='center',
                 va='center',
-                color=self.edge_styles[edge_type]['color'],
+                color=style['color'],
                 fontsize=self.font_size,
                 fontweight='bold',
-                alpha=0.9,
-                zorder=3,
                 bbox=dict(
                     facecolor='white',
-                    edgecolor=self.edge_styles[edge_type]['color'],
-                    alpha=0.7,
-                    pad=2
-                )
+                    edgecolor=style['color'],
+                    alpha=0.9,
+                    pad=2.0,
+                    boxstyle='round,pad=0.4'
+                ),
+                zorder=3
             )
 
-        # Draw edges for each group
+        # Draw edges with arrowheads
         for edge_type, edges in edge_groups.items():
             if not edges:
                 continue
@@ -299,8 +327,7 @@ class MatplotlibVisualizer(BaseVisualizer):
                 alpha=0.7 if edge_type == 'same_vpc' else 0.8,
                 style=style['style'],
                 arrowstyle='->',
-                connectionstyle='arc3,rad=0.2',
-                label=f'Ingress ({edge_type.replace("_", " ").title()})'
+                connectionstyle='arc3,rad=0.2'
             )
 
     def _draw_nodes(self) -> None:
@@ -312,7 +339,7 @@ class MatplotlibVisualizer(BaseVisualizer):
         sg_nodes = [n for n, attr in self.graph.nodes(data=True)
                    if attr.get('type') == 'security_group']
         regular_nodes = [n for n in sg_nodes
-                        if not self.graph.nodes[n].get('is_highlighted')]
+                         if not self.graph.nodes[n].get('is_highlighted')]
         if regular_nodes:
             nx.draw_networkx_nodes(
                 self.graph,
@@ -326,7 +353,7 @@ class MatplotlibVisualizer(BaseVisualizer):
 
         # Highlighted security group node
         highlighted_nodes = [n for n in sg_nodes
-                           if self.graph.nodes[n].get('is_highlighted')]
+                            if self.graph.nodes[n].get('is_highlighted')]
         if highlighted_nodes:
             nx.draw_networkx_nodes(
                 self.graph,
