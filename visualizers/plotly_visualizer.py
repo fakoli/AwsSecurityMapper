@@ -16,21 +16,21 @@ class PlotlyVisualizer(BaseVisualizer):
         self.settings = config.get('visualization', 'plotly', default={})
 
         # Enhanced configuration settings for better visualization
-        self.node_size = self.settings.get('node_size', 40)  # Increased for better visibility
-        self.font_size = self.settings.get('font_size', 12)
-        self.edge_width = self.settings.get('edge_width', 2)
-        self.vpc_spacing = self.settings.get('vpc_spacing', 2.5)
+        self.node_size = self.settings.get('node_size', 30)  # Smaller nodes
+        self.font_size = self.settings.get('font_size', 10)
+        self.edge_width = self.settings.get('edge_width', 1)
+        self.vpc_spacing = self.settings.get('vpc_spacing', 4.0)
 
-        # Enhanced color scheme to match reference
+        # Updated color scheme to match image
         self.colors = {
-            'regular_sg': '#2980B9',     # Blue for regular security groups
-            'highlighted_sg': '#E74C3C',  # Red for highlighted security group
-            'cidr': '#27AE60',           # Green for CIDR blocks
-            'same_vpc_edge': '#2E4053',   # Dark blue-grey for same VPC edges
-            'cross_vpc_edge': '#E74C3C',  # Red for cross-VPC edges
-            'edge_hover': '#2C3E50',      # Dark blue-gray for edge hovers
-            'vpc_boundary': '#FFFFFF',    # White for VPC boundaries
-            'vpc_background': '#F8F9FA'   # Light gray for VPC background
+            'regular_sg': '#1f77b4',      # Standard blue for regular security groups
+            'highlighted_sg': '#ff7f0e',   # Orange for highlighted security group
+            'cidr': '#2ca02c',            # Green for CIDR blocks
+            'same_vpc_edge': '#000000',    # Black for same VPC edges
+            'cross_vpc_edge': '#ff0000',   # Red for cross-VPC edges
+            'edge_hover': '#666666',       # Gray for edge hovers
+            'vpc_boundary': '#000000',     # Black for VPC boundaries
+            'vpc_background': '#ffffff'    # White for VPC background
         }
 
     def clear(self) -> None:
@@ -144,15 +144,17 @@ class PlotlyVisualizer(BaseVisualizer):
                 x=[x0, x1],
                 y=[y0, y1],
                 line=dict(
-                    width=self.edge_width * (1.5 if is_cross_vpc else 1),
+                    width=1,
                     color=self.colors['cross_vpc_edge'] if is_cross_vpc else self.colors['same_vpc_edge'],
-                    dash='dash' if is_cross_vpc else 'solid'
+                    dash='dot' if is_cross_vpc else 'solid'
                 ),
                 hoverinfo='text',
                 hovertext=hover_text,
-                mode='lines',
+                mode='lines+text',
+                text=edge[2].get('ports', ''),
+                textposition='middle center',
                 showlegend=True,
-                name='Cross-VPC Connection' if is_cross_vpc else 'Same VPC Connection'
+                name='Cross-VPC Reference' if is_cross_vpc else 'Same VPC Reference'
             ))
 
             # Add arrow at midpoint
@@ -294,12 +296,12 @@ class PlotlyVisualizer(BaseVisualizer):
                 x0=min_x, y0=min_y,
                 x1=max_x, y1=max_y,
                 line=dict(
-                    color='#FFFFFF',  # Pure white border
-                    width=3,          # Thicker border
-                    dash='solid'      # Solid line for clearer boundary
+                    color='#000000',  # Black border
+                    width=1,          # Thinner border
+                    dash='solid'      # Solid line
                 ),
-                fillcolor='rgba(248, 249, 250, 0.2)',  # Very light background
-                opacity=1.0,  # Full opacity for borders
+                fillcolor='rgba(255, 255, 255, 0)',  # Transparent background
+                opacity=1.0,
                 layer='below'
             ))
 
