@@ -28,6 +28,13 @@ class GraphGenerator:
 
     def generate_visualization(self, output_path: str, title: Optional[str] = None) -> None:
         """Generate and save the visualization using the configured visualizer."""
+        # Ensure build directory exists
+        os.makedirs('build', exist_ok=True)
+        
+        # Prepend build directory if not already included
+        if not output_path.startswith('build/'):
+            output_path = os.path.join('build', output_path)
+            
         # Adjust file extension based on visualizer
         if isinstance(self.visualizer, PlotlyVisualizer):
             if not output_path.endswith('.html'):

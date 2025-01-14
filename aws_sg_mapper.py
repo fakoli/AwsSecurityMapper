@@ -78,7 +78,8 @@ def generate_sg_maps(security_groups: List[dict], base_output: str, output_per_s
 
     if output_per_sg:
         # Generate individual maps for each security group
-        output_dir = os.path.dirname(base_output) or '.'
+        output_dir = os.path.join('build', os.path.dirname(base_output) or '')
+        os.makedirs(output_dir, exist_ok=True)
         base_name = os.path.splitext(os.path.basename(base_output))[0]
         ext = os.path.splitext(base_output)[1] or '.png'
 
