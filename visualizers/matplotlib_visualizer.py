@@ -17,11 +17,11 @@ class MatplotlibVisualizer(BaseVisualizer):
         self.graph = nx.DiGraph()
         self.highlight_sg = None
         self.settings = config.get('visualization', 'matplotlib', default={})
-        self.node_size = self.settings.get('node_size', 2000)
-        self.font_size = self.settings.get('font_size', 8)
-        self.edge_width = self.settings.get('edge_width', 1)
-        self.vpc_spacing = self.settings.get('vpc_spacing', 4.0)
-        self.vpc_padding = self.settings.get('vpc_padding', 1.0)
+        self.node_size = self.settings.get('node_size', 3000)
+        self.font_size = self.settings.get('font_size', 10)
+        self.edge_width = self.settings.get('edge_width', 1.5)
+        self.vpc_spacing = self.settings.get('vpc_spacing', 5.0)
+        self.vpc_padding = self.settings.get('vpc_padding', 1.5)
         self.pos = None
 
         # Define styles for different edge types
@@ -249,9 +249,9 @@ class MatplotlibVisualizer(BaseVisualizer):
                 bbox=dict(
                     facecolor='white',
                     edgecolor=self.edge_styles[edge_type]['color'],
-                    alpha=0.95,
-                    pad=2,
-                    boxstyle='round,pad=0.3'
+                    alpha=1.0,
+                    pad=3,
+                    boxstyle='round,pad=0.5'
                 ),
                 zorder=3,
                 transform=plt.gca().transData,
@@ -415,14 +415,19 @@ class MatplotlibVisualizer(BaseVisualizer):
             max_y = max(y for x, y in vpc_pos) + self.vpc_padding
 
             # Draw VPC rectangle
+            # Generate unique color based on VPC ID
+            vpc_colors = ['#F8F9FA', '#E3F2FD', '#FFF3E0', '#F3E5F5', '#E8F5E9']
+            vpc_idx = list(vpc_groups.keys()).index(vpc_id)
+            vpc_color = vpc_colors[vpc_idx % len(vpc_colors)]
+            
             rect = plt.Rectangle(
                 (min_x, min_y),
                 max_x - min_x,
                 max_y - min_y,
                 fill=True,
-                facecolor='#F8F9FA',
+                facecolor=vpc_color,
                 edgecolor='#6C757D',
-                alpha=0.2,
+                alpha=0.3,
                 linewidth=2,
                 label='VPC Boundary' if vpc_id == list(vpc_groups.keys())[0] else ""
             )
