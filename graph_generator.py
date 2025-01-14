@@ -7,7 +7,7 @@ import os
 class GraphGenerator:
     def __init__(self):
         """Initialize the graph generator with configured visualizer."""
-        self.visualizer = MatplotlibVisualizer()  # Always use matplotlib
+        self.visualizer = PlotlyVisualizer()  # Use Plotly for interactive visualizations
         self.security_groups = None
         self.highlight_sg = None
 
