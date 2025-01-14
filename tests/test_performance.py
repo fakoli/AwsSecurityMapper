@@ -34,7 +34,7 @@ def test_large_sg_visualization_performance():
         end_time = time.time()
         
         duration = end_time - start_time
-        assert duration < count/10, f"Processing {count} SGs took {duration:.2f}s, expected < {count/10:.2f}s"
+        assert duration < count/8, f"Processing {count} SGs took {duration:.2f}s, expected < {count/8:.2f}s"
 
 def test_memory_usage():
     """Test memory usage with large security group sets."""

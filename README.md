@@ -167,18 +167,25 @@ visualization:
 python aws_sg_mapper.py --profiles default --output map.png
 ```
 
-#### Plotly (Interactive HTML)
+#### Matplotlib Visualization
 - Default configuration:
 ```yaml
 visualization:
-  default_engine: "plotly"
+  default_engine: "matplotlib"
+  matplotlib:
+    node_size: 5000
+    font_size: 12
+    edge_width: 2.5
+    vpc_spacing: 8.0
+    vpc_padding: 3.0
 ```
-- Creates interactive HTML files
+- Generates high-quality PNG output
 - Features:
-  - Zoom and pan
-  - Hover information
-  - Node dragging
-  - Custom tooltips
+  - Clean, modern visual style
+  - VPC grouping with distinct colors
+  - Clear edge labels
+  - Comprehensive legend
+  - High DPI for crisp rendering
 - Command:
 ```bash
 python aws_sg_mapper.py --profiles default --output map.html

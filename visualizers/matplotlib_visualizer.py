@@ -17,11 +17,12 @@ class MatplotlibVisualizer(BaseVisualizer):
         self.graph = nx.DiGraph()
         self.highlight_sg = None
         self.settings = config.get('visualization', 'matplotlib', default={})
-        self.node_size = self.settings.get('node_size', 4000)
-        self.font_size = self.settings.get('font_size', 11)
-        self.edge_width = self.settings.get('edge_width', 2.0)
-        self.vpc_spacing = self.settings.get('vpc_spacing', 6.0)
-        self.vpc_padding = self.settings.get('vpc_padding', 2.0)
+        self.node_size = self.settings.get('node_size', 5000)  # Increased for better visibility
+        self.font_size = self.settings.get('font_size', 12)    # Larger font
+        self.edge_width = self.settings.get('edge_width', 2.5) # Thicker edges
+        self.vpc_spacing = self.settings.get('vpc_spacing', 8.0) # More space between VPCs
+        self.vpc_padding = self.settings.get('vpc_padding', 3.0) # More padding
+        plt.style.use('seaborn')  # Use better default style
         self.pos = None
 
         # Define styles for different edge types
