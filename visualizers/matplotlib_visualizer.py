@@ -19,6 +19,8 @@ class MatplotlibVisualizer(BaseVisualizer):
         self.node_size = self.settings.get('node_size', 2000)
         self.font_size = self.settings.get('font_size', 8)
         self.edge_width = self.settings.get('edge_width', 1)
+        self.vpc_spacing = 4.0  # Increased from 3.5 for better separation
+        self.vpc_padding = 1.0  # Increased from 0.8 for more room
         self.pos = None  # Store the layout positions
         self.edge_styles = {
             'same_vpc': {'color': '#404040', 'style': 'solid', 'width': 1.2},
@@ -45,11 +47,11 @@ class MatplotlibVisualizer(BaseVisualizer):
 
             # Add the security group node
             self.graph.add_node(group_id,
-                              name=group_name,
-                              description=description,
-                              vpc_id=vpc_id,
-                              type='security_group',
-                              is_highlighted=group_id == highlight_sg)
+                                 name=group_name,
+                                 description=description,
+                                 vpc_id=vpc_id,
+                                 type='security_group',
+                                 is_highlighted=group_id == highlight_sg)
 
             # Process inbound rules
             for permission in sg.get('IpPermissions', []):
@@ -73,20 +75,20 @@ class MatplotlibVisualizer(BaseVisualizer):
             if source_id:
                 if source_id not in self.graph:
                     self.graph.add_node(source_id,
-                                    name=f"Security Group {source_id}",
-                                    description="Referenced Security Group",
-                                    vpc_id=source_vpc,
-                                    type='security_group',
-                                    is_highlighted=source_id == self.highlight_sg)
+                                        name=f"Security Group {source_id}",
+                                        description="Referenced Security Group",
+                                        vpc_id=source_vpc,
+                                        type='security_group',
+                                        is_highlighted=source_id == self.highlight_sg)
 
                 edge_label = f"{protocol}\n{port_info}"
                 is_cross_vpc = vpc_id != source_vpc and source_vpc != 'Unknown VPC'
                 self.graph.add_edge(source_id, target_group_id,
-                                label=edge_label,
-                                protocol=protocol,
-                                ports=port_info,
-                                is_cross_vpc=is_cross_vpc,
-                                direction='ingress')
+                                    label=edge_label,
+                                    protocol=protocol,
+                                    ports=port_info,
+                                    is_cross_vpc=is_cross_vpc,
+                                    direction='ingress')
 
         # Handle CIDR ranges
         for ip_range in permission.get('IpRanges', []):
@@ -97,11 +99,11 @@ class MatplotlibVisualizer(BaseVisualizer):
                 self.graph.add_node(cidr_node, name=friendly_name, type='cidr')
                 edge_label = f"{protocol}\n{port_info}"
                 self.graph.add_edge(cidr_node, target_group_id,
-                                label=edge_label,
-                                protocol=protocol,
-                                ports=port_info,
-                                is_cross_vpc=False,
-                                direction='ingress')
+                                    label=edge_label,
+                                    protocol=protocol,
+                                    ports=port_info,
+                                    is_cross_vpc=False,
+                                    direction='ingress')
 
     def _draw_vpc_groups(self) -> None:
         """Draw VPC boundaries and labels."""
@@ -113,21 +115,21 @@ class MatplotlibVisualizer(BaseVisualizer):
                     vpc_groups[vpc_id] = []
                 vpc_groups[vpc_id].append(node)
 
-        # Position nodes by VPC
-        spacing = 2.0
+        # Position nodes by VPC with increased spacing
+        spacing = self.vpc_spacing
         current_x = 0
 
         for vpc_id, nodes in vpc_groups.items():
             if not nodes:
                 continue
 
-            # Calculate VPC boundary
+            # Calculate VPC boundary with increased padding
             vpc_pos = [self.pos[node] for node in nodes]
             if vpc_pos:
-                min_x = min(x for x, y in vpc_pos) - 0.5
-                max_x = max(x for x, y in vpc_pos) + 0.5
-                min_y = min(y for x, y in vpc_pos) - 0.5
-                max_y = max(y for x, y in vpc_pos) + 0.5
+                min_x = min(x for x, y in vpc_pos) - self.vpc_padding
+                max_x = max(x for x, y in vpc_pos) + self.vpc_padding
+                min_y = min(y for x, y in vpc_pos) - self.vpc_padding
+                max_y = max(y for x, y in vpc_pos) + self.vpc_padding
 
                 rect = plt.Rectangle(
                     (min_x, min_y),
@@ -143,10 +145,10 @@ class MatplotlibVisualizer(BaseVisualizer):
                 )
                 plt.gca().add_patch(rect)
 
-                # Add VPC label
+                # Add VPC label with increased offset
                 plt.text(
                     min_x + (max_x - min_x)/2,
-                    max_y + 0.2,
+                    max_y + self.vpc_padding/2,
                     f'VPC: {vpc_id}',
                     horizontalalignment='center',
                     verticalalignment='bottom',
@@ -231,75 +233,65 @@ class MatplotlibVisualizer(BaseVisualizer):
             mid_x = (x0 + x1) / 2
             mid_y = (y0 + y1) / 2
 
-            # Add protocol and port information
+            # Calculate perpendicular offset for text placement
+            dx = x1 - x0
+            dy = y1 - y0
+            length = (dx * dx + dy * dy) ** 0.5
+            if length > 0:
+                offset_x = -dy / length * 0.5  # Increased offset
+                offset_y = dx / length * 0.5
+            else:
+                offset_x = offset_y = 0
+
+            # Add protocol and port information above the line
             protocol = d.get('protocol', 'All')
             ports = d.get('ports', '')
-
-            # Create edge label with port/protocol info
-            label = f"{protocol}\n{ports}"
-
-            # Add arrow indicator text
-            arrow_text = "◄ INGRESS"
-
-            # Position the labels
             plt.annotate(
-                label,
+                f"{protocol}\n{ports}",
                 xy=(mid_x, mid_y),
-                xytext=(0, 10),  # Offset above the line
-                textcoords='offset points',
+                xytext=(mid_x + offset_x, mid_y + offset_y),
                 ha='center',
-                va='bottom',
-                bbox=dict(
-                    boxstyle='round,pad=0.5',
-                    fc='white',
-                    ec='gray',
-                    alpha=0.7
-                ),
-                fontsize=self.font_size-2
+                va='center',
+                color='black',
+                fontsize=self.font_size,
+                alpha=0.9,
+                zorder=3,
+                bbox=None
             )
 
-            # Add directional indicator
+            # Add directional indicator below the line
             plt.annotate(
-                arrow_text,
+                "◄ INGRESS",
                 xy=(mid_x, mid_y),
-                xytext=(0, -15),  # Offset below the line
-                textcoords='offset points',
+                xytext=(mid_x - offset_x, mid_y - offset_y),
                 ha='center',
-                va='top',
+                va='center',
                 color=self.edge_styles[edge_type]['color'],
                 fontweight='bold',
-                fontsize=self.font_size-2
+                fontsize=self.font_size,
+                alpha=0.9,
+                zorder=3,
+                bbox=None
             )
 
-        # Draw normal edges (same VPC)
-        if edge_groups['same_vpc']:
+        # Draw edges for each group
+        for edge_type, edges in edge_groups.items():
+            if not edges:
+                continue
+
+            style = self.edge_styles[edge_type]
             nx.draw_networkx_edges(
                 self.graph,
                 self.pos,
-                edgelist=edge_groups['same_vpc'],
-                edge_color=self.edge_styles['same_vpc']['color'],
-                width=self.edge_styles['same_vpc']['width'] * self.edge_width,
-                arrowsize=25,
-                alpha=0.7,
+                edgelist=edges,
+                edge_color=style['color'],
+                width=style['width'] * self.edge_width,
+                arrowsize=25 if edge_type == 'same_vpc' else 30,
+                alpha=0.7 if edge_type == 'same_vpc' else 0.8,
+                style=style['style'],
                 arrowstyle='->',
                 connectionstyle='arc3,rad=0.2',
-                label='Ingress (Same VPC)'
-            )
-
-        # Draw cross-VPC edges
-        if edge_groups['cross_vpc']:
-            nx.draw_networkx_edges(
-                self.graph,
-                self.pos,
-                edgelist=edge_groups['cross_vpc'],
-                edge_color=self.edge_styles['cross_vpc']['color'],
-                width=self.edge_styles['cross_vpc']['width'] * self.edge_width,
-                arrowsize=30,
-                style=self.edge_styles['cross_vpc']['style'],
-                alpha=0.8,
-                arrowstyle='->',
-                connectionstyle='arc3,rad=0.2',
-                label='Ingress (Cross-VPC)'
+                label=f'Ingress ({edge_type.replace("_", " ").title()})'
             )
 
     def _draw_labels(self) -> None:
@@ -388,9 +380,55 @@ class MatplotlibVisualizer(BaseVisualizer):
 
         try:
             plt.figure(figsize=(20, 20))
-            self.pos = nx.spring_layout(self.graph, k=3, iterations=50)
 
+            # Create initial spring layout with increased spacing
+            initial_pos = nx.spring_layout(self.graph, k=4.0, iterations=100)  # Increased k and iterations
+
+            # Group nodes by VPC
+            vpc_groups = {}
+            for node, data in self.graph.nodes(data=True):
+                if data.get('type') == 'security_group':
+                    vpc_id = data.get('vpc_id', 'Unknown VPC')
+                    if vpc_id not in vpc_groups:
+                        vpc_groups[vpc_id] = []
+                    vpc_groups[vpc_id].append(node)
+
+            # Position nodes with increased spacing between VPCs
+            total_vpcs = len(vpc_groups)
+            vpc_width = self.vpc_spacing * 2  # Double the VPC spacing
+            start_x = -(total_vpcs * vpc_width) / 2
+
+            # Final positions dictionary
+            self.pos = {}
+
+            # Position VPCs
+            for vpc_idx, (vpc_id, nodes) in enumerate(vpc_groups.items()):
+                if not nodes:
+                    continue
+
+                vpc_center_x = start_x + (vpc_idx + 0.5) * vpc_width
+
+                # Adjust node positions within VPC
+                for node in nodes:
+                    relative_x = initial_pos[node][0] - sum(initial_pos[n][0] for n in nodes) / len(nodes)
+                    new_x = vpc_center_x + relative_x * 2.0  # Increased scaling factor
+                    self.pos[node] = (new_x, initial_pos[node][1] * 2.0)  # Scale Y coordinates
+
+            # Position CIDR nodes with more spacing
+            for node, data in self.graph.nodes(data=True):
+                if data.get('type') == 'cidr':
+                    connected_sgs = list(self.graph.neighbors(node))
+                    if connected_sgs:
+                        avg_x = sum(self.pos[sg][0] for sg in connected_sgs) / len(connected_sgs)
+                        max_y = max(self.pos[sg][1] for sg in connected_sgs)
+                        self.pos[node] = (avg_x, max_y + 2.0)  # Increased spacing
+                    else:
+                        self.pos[node] = initial_pos[node]
+
+            # Draw VPC boundaries first
             self._draw_vpc_groups()
+
+            # Draw nodes and edges
             self._draw_nodes()
             self._draw_edges()
             self._draw_labels()
@@ -406,6 +444,7 @@ class MatplotlibVisualizer(BaseVisualizer):
             plt.close()
 
             logger.info(f"Graph visualization saved to {output_path}")
+
         except Exception as e:
             logger.error(f"Error generating visualization: {str(e)}")
             raise

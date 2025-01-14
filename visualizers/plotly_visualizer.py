@@ -17,8 +17,8 @@ class PlotlyVisualizer(BaseVisualizer):
         self.node_size = self.settings.get('node_size', 30)
         self.font_size = self.settings.get('font_size', 12)
         self.edge_width = self.settings.get('edge_width', 2)
-        self.vpc_spacing = self.settings.get('vpc_spacing', 2.5)
-        self.vpc_padding = 0.4
+        self.vpc_spacing = self.settings.get('vpc_spacing', 4.0)  # Increased from 3.5
+        self.vpc_padding = 0.8  # Increased from 0.6
         self.edge_styles = {
             'same_vpc': {'color': '#404040', 'dash': None},
             'cross_vpc': {'color': '#FF6B6B', 'dash': 'dash'}
@@ -47,20 +47,20 @@ class PlotlyVisualizer(BaseVisualizer):
             if source_id:
                 if source_id not in self.graph:
                     self.graph.add_node(source_id,
-                                     name=f"Security Group {source_id}",
-                                     description="Referenced Security Group",
-                                     vpc_id=source_vpc,
-                                     type='security_group',
-                                     is_highlighted=source_id == self.highlight_sg)
+                                   name=f"Security Group {source_id}",
+                                   description="Referenced Security Group",
+                                   vpc_id=source_vpc,
+                                   type='security_group',
+                                   is_highlighted=source_id == self.highlight_sg)
 
                 edge_label = f"{protocol}\n{port_info}"
                 is_cross_vpc = vpc_id != source_vpc and source_vpc != 'Unknown VPC'
                 self.graph.add_edge(source_id, target_group_id,
-                                 label=edge_label,
-                                 protocol=protocol,
-                                 ports=port_info,
-                                 is_cross_vpc=is_cross_vpc,
-                                 direction='ingress')
+                                label=edge_label,
+                                protocol=protocol,
+                                ports=port_info,
+                                is_cross_vpc=is_cross_vpc,
+                                direction='ingress')
 
         # Handle CIDR ranges
         for ip_range in permission.get('IpRanges', []):
@@ -71,11 +71,11 @@ class PlotlyVisualizer(BaseVisualizer):
                 self.graph.add_node(cidr_node, name=friendly_name, type='cidr')
                 edge_label = f"{protocol}\n{port_info}"
                 self.graph.add_edge(cidr_node, target_group_id,
-                                 label=edge_label,
-                                 protocol=protocol,
-                                 ports=port_info,
-                                 is_cross_vpc=False,
-                                 direction='ingress')
+                                label=edge_label,
+                                protocol=protocol,
+                                ports=port_info,
+                                is_cross_vpc=False,
+                                direction='ingress')
 
     def build_graph(self, security_groups: List[Dict], highlight_sg: Optional[str] = None) -> None:
         """Build NetworkX graph from security group data."""
@@ -110,8 +110,93 @@ class PlotlyVisualizer(BaseVisualizer):
         try:
             fig = go.Figure()
 
-            # Create spring layout with increased spacing
-            pos = nx.spring_layout(self.graph, k=3)
+            # Group nodes by VPC
+            vpc_groups = {}
+            cidr_nodes = []
+            for node, data in self.graph.nodes(data=True):
+                if data.get('type') == 'security_group':
+                    vpc_id = data.get('vpc_id', 'Unknown VPC')
+                    if vpc_id not in vpc_groups:
+                        vpc_groups[vpc_id] = []
+                    vpc_groups[vpc_id].append(node)
+                elif data.get('type') == 'cidr':
+                    cidr_nodes.append(node)
+
+            # Create initial spring layout with increased spacing between nodes
+            pos = nx.spring_layout(self.graph, k=8, iterations=100)  # Increased k and iterations
+
+            # Calculate VPC positions
+            vpc_positions = {}
+            total_vpcs = len(vpc_groups)
+            vpc_width = self.vpc_spacing * 2  # Double the VPC spacing
+            start_x = -(total_vpcs * vpc_width) / 2
+
+            # Position VPCs with more spacing
+            for vpc_idx, (vpc_id, nodes) in enumerate(vpc_groups.items()):
+                if not nodes:
+                    continue
+
+                vpc_center_x = start_x + (vpc_idx + 0.5) * vpc_width
+
+                # Adjust node positions within VPC with more spacing
+                for node in nodes:
+                    relative_x = pos[node][0] - sum(pos[n][0] for n in nodes) / len(nodes)
+                    new_x = vpc_center_x + relative_x * 2.0  # Increased scaling factor
+                    pos[node] = (new_x, pos[node][1] * 2.0)  # Scale Y coordinates too
+
+                # Calculate VPC boundaries with increased padding
+                node_positions = [pos[node] for node in nodes]
+                x_coords = [x for x, _ in node_positions]
+                y_coords = [y for _, y in node_positions]
+
+                vpc_positions[vpc_id] = {
+                    'x0': min(x_coords) - self.vpc_padding * 2,
+                    'x1': max(x_coords) + self.vpc_padding * 2,
+                    'y0': min(y_coords) - self.vpc_padding * 2,
+                    'y1': max(y_coords) + self.vpc_padding * 2,
+                    'center_x': vpc_center_x
+                }
+
+            # Position CIDR nodes with more spacing
+            for node in cidr_nodes:
+                neighbors = list(self.graph.neighbors(node))
+                if neighbors:
+                    avg_x = sum(pos[n][0] for n in neighbors) / len(neighbors)
+                    max_y = max(pos[n][1] for n in neighbors)
+                    pos[node] = (avg_x, max_y + 2.0)  # Increased spacing
+
+            # Add VPC boundaries first (below other elements)
+            for vpc_id, bounds in vpc_positions.items():
+                fig.add_shape(
+                    type="rect",
+                    x0=bounds['x0'],
+                    y0=bounds['y0'],
+                    x1=bounds['x1'],
+                    y1=bounds['y1'],
+                    line=dict(
+                        color="#6c757d",
+                        width=2,
+                        dash="solid"
+                    ),
+                    fillcolor="rgba(248, 249, 250, 0.2)",
+                    layer="below"
+                )
+
+                # Add VPC label
+                fig.add_annotation(
+                    x=(bounds['x0'] + bounds['x1']) / 2,
+                    y=bounds['y1'] + 0.4,  # Increased offset
+                    text=f"VPC: {vpc_id}",
+                    showarrow=False,
+                    font=dict(
+                        size=12,
+                        color="#000000"
+                    ),
+                    bgcolor="white",
+                    bordercolor="#6c757d",
+                    borderwidth=1,
+                    borderpad=4
+                )
 
             # Process edges and create traces
             edge_traces = {}
@@ -152,11 +237,21 @@ class PlotlyVisualizer(BaseVisualizer):
                     )
                 )
 
-                # Add protocol/port information
+                # Calculate perpendicular offset for text placement
+                dx = x1 - x0
+                dy = y1 - y0
+                length = (dx * dx + dy * dy) ** 0.5
+                if length > 0:
+                    offset_x = -dy / length * 0.4  # Increased offset for better text spacing
+                    offset_y = dx / length * 0.4
+                else:
+                    offset_x = offset_y = 0
+
+                # Add protocol/port information above the line
                 edge_traces[edge_type].append(
                     go.Scatter(
-                        x=[mid_x],
-                        y=[mid_y],
+                        x=[mid_x + offset_x],
+                        y=[mid_y + offset_y],
                         mode='text',
                         text=[f"{protocol}<br>{ports}"],
                         textposition="middle center",
@@ -164,18 +259,16 @@ class PlotlyVisualizer(BaseVisualizer):
                             size=10,
                             color='black'
                         ),
-                        hoverinfo='skip',
+                        hoverinfo='none',
                         showlegend=False
                     )
                 )
 
-                # Add "INGRESS" text with arrow
-                arrow_x = x0 + 0.7 * (x1 - x0)
-                arrow_y = y0 + 0.7 * (y1 - y0)
+                # Add "INGRESS" text with arrow below the line
                 edge_traces[edge_type].append(
                     go.Scatter(
-                        x=[arrow_x],
-                        y=[arrow_y],
+                        x=[mid_x - offset_x],
+                        y=[mid_y - offset_y],
                         mode='text+markers',
                         text=["◄ INGRESS"],
                         textposition="bottom center",
@@ -200,10 +293,10 @@ class PlotlyVisualizer(BaseVisualizer):
                 for trace in traces:
                     fig.add_trace(trace)
 
-            # Add security group nodes
+            # Add nodes with better spacing
             for node, attr in self.graph.nodes(data=True):
-                x, y = pos[node]
                 if attr.get('type') == 'security_group':
+                    x, y = pos[node]
                     color = '#FF6B6B' if attr.get('is_highlighted') else '#5B9BD5'
                     size = self.node_size * 1.5 if attr.get('is_highlighted') else self.node_size
                     name = attr.get('name', str(node))
@@ -226,7 +319,7 @@ class PlotlyVisualizer(BaseVisualizer):
                     ))
 
             # Add CIDR nodes
-            for node in [n for n, attr in self.graph.nodes(data=True) if attr.get('type') == 'cidr']:
+            for node in cidr_nodes:
                 x, y = pos[node]
                 fig.add_trace(go.Scatter(
                     x=[x],
@@ -245,7 +338,7 @@ class PlotlyVisualizer(BaseVisualizer):
                     legendgroup='nodes'
                 ))
 
-            # Update layout
+            # Update layout with better spacing
             fig.update_layout(
                 title=dict(
                     text=title or "AWS Security Group Relationships",
