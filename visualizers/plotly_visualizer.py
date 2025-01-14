@@ -19,6 +19,10 @@ class PlotlyVisualizer(BaseVisualizer):
         self.edge_width = self.settings.get('edge_width', 2)
         self.vpc_spacing = self.settings.get('vpc_spacing', 2.5)  # Increased default spacing
         self.vpc_padding = 0.4  # Added padding between VPC boundaries
+        self.edge_styles = {
+            'same_vpc': {'color': '#404040', 'dash': None},
+            'cross_vpc': {'color': '#FF6B6B', 'dash': 'dash'}
+        }
 
     def clear(self) -> None:
         """Clear the current graph data."""
@@ -39,18 +43,18 @@ class PlotlyVisualizer(BaseVisualizer):
             if source_id:
                 if source_id not in self.graph:
                     self.graph.add_node(source_id,
-                                        name=f"Security Group {source_id}",
-                                        description="Referenced Security Group",
-                                        vpc_id=source_vpc,
-                                        type='security_group',
-                                        is_highlighted=source_id == self.highlight_sg)
+                                     name=f"Security Group {source_id}",
+                                     description="Referenced Security Group",
+                                     vpc_id=source_vpc,
+                                     type='security_group',
+                                     is_highlighted=source_id == self.highlight_sg)
 
-                edge_label = f"{protocol}:{format_ports(from_port, to_port)}"
+                edge_label = f"[Ingress]\n{protocol}:{format_ports(from_port, to_port)}"
                 is_cross_vpc = vpc_id != source_vpc and source_vpc != 'Unknown VPC'
                 self.graph.add_edge(source_id, target_group_id,
-                                    label=edge_label,
-                                    ports=f"{from_port}-{to_port}",
-                                    is_cross_vpc=is_cross_vpc)
+                                 label=edge_label,
+                                 ports=f"{from_port}-{to_port}",
+                                 is_cross_vpc=is_cross_vpc)
 
         # Handle CIDR ranges
         for ip_range in permission.get('IpRanges', []):
@@ -59,11 +63,11 @@ class PlotlyVisualizer(BaseVisualizer):
                 friendly_name = get_friendly_cidr_name(cidr)
                 cidr_node = f"CIDR: {friendly_name}"
                 self.graph.add_node(cidr_node, name=friendly_name, type='cidr')
-                edge_label = f"{protocol}:{format_ports(from_port, to_port)}"
+                edge_label = f"[Ingress]\n{protocol}:{format_ports(from_port, to_port)}"
                 self.graph.add_edge(cidr_node, target_group_id,
-                                    label=edge_label,
-                                    ports=f"{from_port}-{to_port}",
-                                    is_cross_vpc=False)
+                                 label=edge_label,
+                                 ports=f"{from_port}-{to_port}",
+                                 is_cross_vpc=False)
 
     def build_graph(self, security_groups: List[Dict], highlight_sg: Optional[str] = None) -> None:
         """Build NetworkX graph from security group data."""
@@ -79,11 +83,11 @@ class PlotlyVisualizer(BaseVisualizer):
 
             # Add the security group node
             self.graph.add_node(group_id,
-                                name=group_name,
-                                description=description,
-                                vpc_id=vpc_id,
-                                type='security_group',
-                                is_highlighted=group_id == highlight_sg)
+                             name=group_name,
+                             description=description,
+                             vpc_id=vpc_id,
+                             type='security_group',
+                             is_highlighted=group_id == highlight_sg)
 
             # Process inbound rules
             for permission in sg.get('IpPermissions', []):
@@ -112,7 +116,7 @@ class PlotlyVisualizer(BaseVisualizer):
                     cidr_nodes.append(node)
 
             # Create spring layout with increased spacing
-            pos = nx.spring_layout(self.graph, k=3)  
+            pos = nx.spring_layout(self.graph, k=3)
 
             # Calculate total width needed for all VPCs
             vpc_count = len(vpc_groups)
@@ -191,57 +195,63 @@ class PlotlyVisualizer(BaseVisualizer):
                     bgcolor="rgba(255, 255, 255, 0.8)"
                 )
 
-            # Add edges with arrows
+            # Add edges (connections) with arrows and labels
+            edge_traces = {}
             for edge in self.graph.edges(data=True):
                 x0, y0 = pos[edge[0]]
                 x1, y1 = pos[edge[1]]
                 is_cross_vpc = edge[2].get('is_cross_vpc', False)
                 label = edge[2].get('label', '')
 
-                # Calculate arrow position (80% along the edge)
+                # Get edge style based on type
+                edge_style = self.edge_styles['cross_vpc'] if is_cross_vpc else self.edge_styles['same_vpc']
+                edge_type = 'Ingress Rule (Cross-VPC)' if is_cross_vpc else 'Ingress Rule (Same VPC)'
+
+                if edge_type not in edge_traces:
+                    edge_traces[edge_type] = []
+
+                # Add main edge line
+                edge_traces[edge_type].append(
+                    go.Scatter(
+                        x=[x0, x1],
+                        y=[y0, y1],
+                        mode='lines',
+                        line=dict(
+                            color=edge_style['color'],
+                            width=self.edge_width,
+                            dash=edge_style['dash']
+                        ),
+                        hoverinfo='text',
+                        text=label,
+                        showlegend=True if len(edge_traces[edge_type]) == 0 else False,
+                        name=edge_type,
+                        legendgroup=edge_type
+                    )
+                )
+
+                # Add arrow marker at 80% of the edge length
                 arrow_x = x0 + 0.8 * (x1 - x0)
                 arrow_y = y0 + 0.8 * (y1 - y0)
+                edge_traces[edge_type].append(
+                    go.Scatter(
+                        x=[arrow_x],
+                        y=[arrow_y],
+                        mode='markers',
+                        marker=dict(
+                            symbol='triangle-right',
+                            size=15,
+                            color=edge_style['color'],
+                            angle=45
+                        ),
+                        showlegend=False,
+                        hoverinfo='skip'
+                    )
+                )
 
-                if is_cross_vpc:
-                    line_color = '#FF6B6B'
-                    line_dash = 'dash'
-                    name = 'Ingress Rule (Cross-VPC)'
-                else:
-                    line_color = '#404040'
-                    line_dash = None
-                    name = 'Ingress Rule (Same VPC)'
-
-                # Add edge line
-                fig.add_trace(go.Scatter(
-                    x=[x0, x1],
-                    y=[y0, y1],
-                    mode='lines',
-                    line=dict(
-                        color=line_color,
-                        width=self.edge_width,
-                        dash=line_dash
-                    ),
-                    hoverinfo='text',
-                    text=label,
-                    showlegend=True,
-                    name=name,
-                    legendgroup=name,
-                    legendgrouptitle_text="Connection Types"
-                ))
-
-                # Add arrow marker
-                fig.add_trace(go.Scatter(
-                    x=[arrow_x],
-                    y=[arrow_y],
-                    mode='markers',
-                    marker=dict(
-                        symbol='triangle-right',
-                        size=15,
-                        color=line_color,
-                        angle=45
-                    ),
-                    showlegend=False
-                ))
+            # Add all edge traces to the figure
+            for traces in edge_traces.values():
+                for trace in traces:
+                    fig.add_trace(trace)
 
             # Add security group nodes
             for node, attr in self.graph.nodes(data=True):
@@ -264,7 +274,8 @@ class PlotlyVisualizer(BaseVisualizer):
                         hoverinfo='text',
                         hovertext=hover_text,
                         showlegend=True,
-                        name='Target SG' if attr.get('is_highlighted') else 'Security Groups'
+                        name='Target SG' if attr.get('is_highlighted') else 'Security Groups',
+                        legendgroup='nodes'
                     ))
 
             # Add CIDR nodes
@@ -283,7 +294,8 @@ class PlotlyVisualizer(BaseVisualizer):
                     textposition="bottom center",
                     hoverinfo='text',
                     showlegend=True,
-                    name='CIDR Blocks'
+                    name='CIDR Blocks',
+                    legendgroup='nodes'
                 ))
 
             # Update layout with improved legend grouping
@@ -297,7 +309,11 @@ class PlotlyVisualizer(BaseVisualizer):
                 showlegend=True,
                 legend=dict(
                     groupclick="toggleitem",
-                    tracegroupgap=5
+                    tracegroupgap=5,
+                    title=dict(
+                        text='Network Elements',
+                        font=dict(size=13)
+                    )
                 ),
                 hovermode='closest',
                 margin=dict(b=20, l=5, r=5, t=40),

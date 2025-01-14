@@ -20,6 +20,10 @@ class MatplotlibVisualizer(BaseVisualizer):
         self.font_size = self.settings.get('font_size', 8)
         self.edge_width = self.settings.get('edge_width', 1)
         self.pos = None  # Store the layout positions
+        self.edge_styles = {
+            'same_vpc': {'color': '#404040', 'style': 'solid', 'width': 1.2},
+            'cross_vpc': {'color': '#FF6B6B', 'style': 'dashed', 'width': 1.5}
+        }
 
     def clear(self) -> None:
         """Clear the current graph data."""
@@ -41,11 +45,11 @@ class MatplotlibVisualizer(BaseVisualizer):
 
             # Add the security group node
             self.graph.add_node(group_id,
-                                name=group_name,
-                                description=description,
-                                vpc_id=vpc_id,
-                                type='security_group',
-                                is_highlighted=group_id == highlight_sg)
+                              name=group_name,
+                              description=description,
+                              vpc_id=vpc_id,
+                              type='security_group',
+                              is_highlighted=group_id == highlight_sg)
 
             # Process inbound rules
             for permission in sg.get('IpPermissions', []):
@@ -65,18 +69,18 @@ class MatplotlibVisualizer(BaseVisualizer):
             if source_id:
                 if source_id not in self.graph:
                     self.graph.add_node(source_id,
-                                        name=f"Security Group {source_id}",
-                                        description="Referenced Security Group",
-                                        vpc_id=source_vpc,
-                                        type='security_group',
-                                        is_highlighted=source_id == self.highlight_sg)
+                                      name=f"Security Group {source_id}",
+                                      description="Referenced Security Group",
+                                      vpc_id=source_vpc,
+                                      type='security_group',
+                                      is_highlighted=source_id == self.highlight_sg)
 
-                edge_label = f"{protocol}:{format_ports(from_port, to_port)}"
+                edge_label = f"[Ingress]\n{protocol}:{format_ports(from_port, to_port)}"
                 is_cross_vpc = vpc_id != source_vpc and source_vpc != 'Unknown VPC'
                 self.graph.add_edge(source_id, target_group_id,
-                                    label=edge_label,
-                                    ports=f"{from_port}-{to_port}",
-                                    is_cross_vpc=is_cross_vpc)
+                                  label=edge_label,
+                                  ports=f"{from_port}-{to_port}",
+                                  is_cross_vpc=is_cross_vpc)
 
         # Handle CIDR ranges
         for ip_range in permission.get('IpRanges', []):
@@ -85,44 +89,11 @@ class MatplotlibVisualizer(BaseVisualizer):
                 friendly_name = get_friendly_cidr_name(cidr)
                 cidr_node = f"CIDR: {friendly_name}"
                 self.graph.add_node(cidr_node, name=friendly_name, type='cidr')
-                edge_label = f"{protocol}:{format_ports(from_port, to_port)}"
+                edge_label = f"[Ingress]\n{protocol}:{format_ports(from_port, to_port)}"
                 self.graph.add_edge(cidr_node, target_group_id,
-                                    label=edge_label,
-                                    ports=f"{from_port}-{to_port}",
-                                    is_cross_vpc=False)
-
-    def generate_visualization(self, output_path: str, title: Optional[str] = None) -> None:
-        """Generate and save the graph visualization using matplotlib."""
-        if not self.graph.nodes():
-            logger.warning("No nodes in graph to visualize")
-            return
-
-        try:
-            plt.figure(figsize=(20, 20))
-
-            # Create spring layout
-            self.pos = nx.spring_layout(self.graph, k=3, iterations=50)
-
-            self._draw_vpc_groups()
-            self._draw_nodes()
-            self._draw_edges()
-            self._draw_labels()
-            self._add_legend()
-
-            # Set title
-            if title:
-                plt.title(title, fontsize=16, pad=20)
-            else:
-                plt.title("AWS Security Group Relationships", fontsize=16, pad=20)
-
-            plt.axis('off')
-            plt.savefig(output_path, dpi=300, bbox_inches='tight')
-            plt.close()
-
-            logger.info(f"Graph visualization saved to {output_path}")
-        except Exception as e:
-            logger.error(f"Error generating visualization: {str(e)}")
-            raise
+                                  label=edge_label,
+                                  ports=f"{from_port}-{to_port}",
+                                  is_cross_vpc=False)
 
     def _draw_vpc_groups(self) -> None:
         """Draw VPC boundaries and labels."""
@@ -142,17 +113,7 @@ class MatplotlibVisualizer(BaseVisualizer):
             if not nodes:
                 continue
 
-            center_x = current_x
-            center_y = 0
-
-            for node in nodes:
-                self.pos[node] = (
-                    self.pos[node][0] * 0.5 + center_x,
-                    self.pos[node][1] * 0.5 + center_y
-                )
-            current_x += spacing
-
-            # Draw VPC boundary
+            # Calculate VPC boundary
             vpc_pos = [self.pos[node] for node in nodes]
             if vpc_pos:
                 min_x = min(x for x, y in vpc_pos) - 0.5
@@ -169,7 +130,8 @@ class MatplotlibVisualizer(BaseVisualizer):
                     linestyle='solid',
                     edgecolor='#6c757d',
                     alpha=0.2,
-                    linewidth=3
+                    linewidth=3,
+                    label='VPC Boundary' if vpc_id == list(vpc_groups.keys())[0] else ""
                 )
                 plt.gca().add_patch(rect)
 
@@ -192,10 +154,12 @@ class MatplotlibVisualizer(BaseVisualizer):
 
     def _draw_nodes(self) -> None:
         """Draw all nodes with proper styling."""
-        sg_nodes = [n for n, attr in self.graph.nodes(data=True)
-                   if attr.get('type') == 'security_group']
+        if not self.pos:
+            return
 
         # Regular security group nodes
+        sg_nodes = [n for n, attr in self.graph.nodes(data=True)
+                   if attr.get('type') == 'security_group']
         regular_nodes = [n for n in sg_nodes
                         if not self.graph.nodes[n].get('is_highlighted')]
         if regular_nodes:
@@ -204,8 +168,9 @@ class MatplotlibVisualizer(BaseVisualizer):
                 self.pos,
                 nodelist=regular_nodes,
                 node_color='#5B9BD5',
-                node_size=self.node_size * 1.2,
-                alpha=0.8
+                node_size=self.node_size,
+                alpha=0.8,
+                label='Security Groups'
             )
 
         # Highlighted security group node
@@ -218,7 +183,8 @@ class MatplotlibVisualizer(BaseVisualizer):
                 nodelist=highlighted_nodes,
                 node_color='#FF6B6B',
                 node_size=self.node_size * 1.5,
-                alpha=1.0
+                alpha=1.0,
+                label='Target Security Group'
             )
 
         # CIDR nodes
@@ -232,7 +198,8 @@ class MatplotlibVisualizer(BaseVisualizer):
                 node_color='#70AD47',
                 node_shape='s',
                 node_size=self.node_size,
-                alpha=0.7
+                alpha=0.7,
+                label='CIDR Blocks'
             )
 
     def _draw_edges(self) -> None:
@@ -240,36 +207,41 @@ class MatplotlibVisualizer(BaseVisualizer):
         if not self.graph.edges():
             return
 
+        # Separate edges by type
         cross_vpc_edges = [(u, v) for u, v, d in self.graph.edges(data=True)
                           if d.get('is_cross_vpc', False)]
         normal_edges = [(u, v) for u, v, d in self.graph.edges(data=True)
                        if not d.get('is_cross_vpc', False)]
 
+        # Draw normal edges (same VPC)
         if normal_edges:
-            # Draw normal edges (ingress)
             nx.draw_networkx_edges(
                 self.graph,
                 self.pos,
                 edgelist=normal_edges,
-                edge_color='#404040',
-                width=self.edge_width * 1.2,
+                edge_color=self.edge_styles['same_vpc']['color'],
+                width=self.edge_styles['same_vpc']['width'] * self.edge_width,
                 arrowsize=25,
                 alpha=0.7,
-                arrowstyle='->'  # Add arrow to show direction
+                arrowstyle='->',
+                connectionstyle='arc3,rad=0.2',
+                label='Ingress Rule (Same VPC)'
             )
 
+        # Draw cross-VPC edges
         if cross_vpc_edges:
-            # Draw cross-VPC edges (ingress across VPCs)
             nx.draw_networkx_edges(
                 self.graph,
                 self.pos,
                 edgelist=cross_vpc_edges,
-                edge_color='#FF6B6B',
-                width=self.edge_width * 1.5,
+                edge_color=self.edge_styles['cross_vpc']['color'],
+                width=self.edge_styles['cross_vpc']['width'] * self.edge_width,
                 arrowsize=30,
-                style='dashed',
+                style=self.edge_styles['cross_vpc']['style'],
                 alpha=0.8,
-                arrowstyle='->'  # Add arrow to show direction
+                arrowstyle='->',
+                connectionstyle='arc3,rad=0.2',
+                label='Ingress Rule (Cross-VPC)'
             )
 
     def _draw_labels(self) -> None:
@@ -311,11 +283,13 @@ class MatplotlibVisualizer(BaseVisualizer):
                     facecolor='white',
                     alpha=0.7,
                     edgecolor='none'
-                )
+                ),
+                rotate=False
             )
 
     def _add_legend(self) -> None:
         """Add a legend to the visualization."""
+        # Create legend elements list
         legend_elements = []
 
         # Node types
@@ -339,22 +313,67 @@ class MatplotlibVisualizer(BaseVisualizer):
                       label='CIDR Blocks'),
         ])
 
-        # Connection types
+        # Connection types with directional arrows
         legend_elements.extend([
-            plt.Line2D([0], [0], color='#404040', lw=2,
-                      label='Ingress Rule (Same VPC)', 
-                      marker='>', markersize=10),
-            plt.Line2D([0], [0], color='#FF6B6B', lw=2,
-                      linestyle='--', label='Ingress Rule (Cross-VPC)',
-                      marker='>', markersize=10),
-            plt.Rectangle((0, 0), 1, 1, fill=False,
-                        color='gray', linestyle='--',
+            plt.Line2D([0], [0], color='#404040',
+                      marker='>', markersize=10,
+                      linestyle='solid', linewidth=2,
+                      label='Ingress Rule (Same VPC)'),
+            plt.Line2D([0], [0], color='#FF6B6B',
+                      marker='>', markersize=10,
+                      linestyle='dashed', linewidth=2,
+                      label='Ingress Rule (Cross-VPC)'),
+            plt.Rectangle((0, 0), 1, 1,
+                        facecolor='#f8f9fa',
+                        edgecolor='#6c757d',
+                        alpha=0.2,
                         label='VPC Boundary')
         ])
 
+        # Create legend with improved layout
         plt.legend(
             handles=legend_elements,
             loc='upper left',
             fontsize=12,
-            bbox_to_anchor=(1, 1)
+            bbox_to_anchor=(1, 1),
+            title='Network Elements',
+            title_fontsize=13,
+            frameon=True,
+            facecolor='white',
+            edgecolor='#e0e0e0',
+            framealpha=0.95,
+            borderpad=1
         )
+
+    def generate_visualization(self, output_path: str, title: Optional[str] = None) -> None:
+        """Generate and save the graph visualization using matplotlib."""
+        if not self.graph.nodes():
+            logger.warning("No nodes in graph to visualize")
+            return
+
+        try:
+            plt.figure(figsize=(20, 20))
+
+            # Create spring layout with increased spacing
+            self.pos = nx.spring_layout(self.graph, k=3, iterations=50)
+
+            self._draw_vpc_groups()
+            self._draw_nodes()
+            self._draw_edges()
+            self._draw_labels()
+            self._add_legend()
+
+            # Set title
+            if title:
+                plt.title(title, fontsize=16, pad=20)
+            else:
+                plt.title("AWS Security Group Relationships", fontsize=16, pad=20)
+
+            plt.axis('off')
+            plt.savefig(output_path, dpi=300, bbox_inches='tight')
+            plt.close()
+
+            logger.info(f"Graph visualization saved to {output_path}")
+        except Exception as e:
+            logger.error(f"Error generating visualization: {str(e)}")
+            raise
