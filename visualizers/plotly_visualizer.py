@@ -268,8 +268,77 @@ class PlotlyVisualizer(BaseVisualizer):
 
         return traces
 
+    def _create_vpc_boundaries(self) -> Tuple[List[dict], List[dict]]:
+        """Create enhanced VPC boundaries and labels."""
+        vpc_shapes = []
+        vpc_annotations = []
+
+        # Group nodes by VPC
+        vpc_groups = {}
+        for node, data in self.graph.nodes(data=True):
+            if data.get('type') == 'security_group':
+                vpc_id = data.get('vpc_id', 'Unknown VPC')
+                if vpc_id not in vpc_groups:
+                    vpc_groups[vpc_id] = []
+                vpc_groups[vpc_id].append(node)
+
+        # Create enhanced VPC boundaries with consistent spacing
+        prev_vpc_max_x = float('-inf')
+        vpc_padding = 0.8  # Increased padding between VPCs
+
+        for vpc_id, nodes in vpc_groups.items():
+            if not nodes:
+                continue
+
+            # Calculate VPC boundary with consistent spacing
+            vpc_pos = [self.pos[node] for node in nodes]
+            min_x = max(prev_vpc_max_x + vpc_padding,
+                       min(x for x, y in vpc_pos) - vpc_padding)
+            max_x = min_x + (max(x for x, y in vpc_pos) - 
+                           min(x for x, y in vpc_pos)) + 2 * vpc_padding
+            min_y = min(y for x, y in vpc_pos) - vpc_padding
+            max_y = max(y for x, y in vpc_pos) + vpc_padding
+
+            # Update the previous VPC's max x coordinate
+            prev_vpc_max_x = max_x
+
+            # Enhanced VPC boundary shape with reference-matching style
+            vpc_shapes.append(dict(
+                type="rect",
+                x0=min_x, y0=min_y,
+                x1=max_x, y1=max_y,
+                line=dict(
+                    color='#FFFFFF',  # Pure white border
+                    width=3,          # Thicker border
+                    dash='solid'      # Solid line for clearer boundary
+                ),
+                fillcolor='rgba(248, 249, 250, 0.2)',  # Very light background
+                opacity=1.0,  # Full opacity for borders
+                layer='below'
+            ))
+
+            # Enhanced VPC label matching reference style
+            vpc_annotations.append(dict(
+                x=(min_x + max_x) / 2,
+                y=max_y + 0.4,  # Positioned higher above the boundary
+                text=f'VPC: {vpc_id}',
+                showarrow=False,
+                font=dict(
+                    size=14,
+                    color='#000000',
+                    family='Arial, sans-serif'
+                ),
+                bgcolor='#FFFFFF',
+                bordercolor='#E2E8F0',
+                borderwidth=1,
+                borderpad=4,
+                opacity=1
+            ))
+
+        return vpc_shapes, vpc_annotations
+
     def generate_visualization(self, output_path: str, title: Optional[str] = None) -> None:
-        """Generate and save the interactive visualization with enhanced features."""
+        """Generate and save the interactive visualization with enhanced VPC features."""
         if not self.graph.nodes():
             logger.warning("No nodes in graph to visualize")
             return
@@ -278,65 +347,15 @@ class PlotlyVisualizer(BaseVisualizer):
             # Generate optimized layout with better spacing
             self.pos = nx.spring_layout(
                 self.graph,
-                k=2.0,          # Increased spacing
-                iterations=100,  # More iterations for better layout
+                k=2.5,          # Increased spacing
+                iterations=150,  # More iterations for better layout
                 seed=42         # Consistent layout
             )
 
-            # Group nodes by VPC
-            vpc_groups = {}
-            for node, data in self.graph.nodes(data=True):
-                if data.get('type') == 'security_group':
-                    vpc_id = data.get('vpc_id', 'Unknown VPC')
-                    if vpc_id not in vpc_groups:
-                        vpc_groups[vpc_id] = []
-                    vpc_groups[vpc_id].append(node)
+            # Create enhanced VPC boundaries and labels
+            vpc_shapes, vpc_annotations = self._create_vpc_boundaries()
 
-            # Create traces for VPC boundaries
-            vpc_shapes = []
-            vpc_annotations = []
-            for vpc_id, nodes in vpc_groups.items():
-                if not nodes:
-                    continue
-
-                # Calculate VPC boundary
-                vpc_pos = [self.pos[node] for node in nodes]
-                min_x = min(x for x, y in vpc_pos) - 0.4
-                max_x = max(x for x, y in vpc_pos) + 0.4
-                min_y = min(y for x, y in vpc_pos) - 0.4
-                max_y = max(y for x, y in vpc_pos) + 0.4
-
-                # Add VPC boundary shape
-                vpc_shapes.append(dict(
-                    type="rect",
-                    x0=min_x, y0=min_y,
-                    x1=max_x, y1=max_y,
-                    line=dict(
-                        color='#E2E8F0',
-                        width=2,
-                    ),
-                    fillcolor=self.colors['vpc_background'],
-                    opacity=0.3,
-                    layer='below'
-                ))
-
-                # Add VPC label at the top
-                vpc_annotations.append(dict(
-                    x=(min_x + max_x) / 2,
-                    y=max_y + 0.2,
-                    text=f'VPC: {vpc_id}',
-                    showarrow=False,
-                    font=dict(
-                        size=14,
-                        color='#1A202C'
-                    ),
-                    bgcolor='#FFFFFF',
-                    bordercolor='#E2E8F0',
-                    borderwidth=1,
-                    borderpad=4
-                ))
-
-            # Create traces
+            # Create traces for nodes and edges
             edge_traces = self._create_edge_traces()
             node_traces = self._create_node_traces()
 
@@ -358,9 +377,10 @@ class PlotlyVisualizer(BaseVisualizer):
                         y=1,
                         xanchor='left',
                         yanchor='top',
-                        bgcolor='rgba(255,255,255,0.9)',
+                        bgcolor='rgba(255,255,255,0.95)',  # More opaque background
                         bordercolor='#E2E8F0',
-                        borderwidth=1
+                        borderwidth=2,  # Thicker border
+                        font=dict(size=12)
                     ),
                     shapes=vpc_shapes,
                     annotations=vpc_annotations,
@@ -368,8 +388,24 @@ class PlotlyVisualizer(BaseVisualizer):
                     margin=dict(b=20, l=5, r=5, t=40),
                     plot_bgcolor='white',
                     paper_bgcolor='white',
-                    xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-                    yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)
+                    xaxis=dict(
+                        showgrid=False,
+                        zeroline=False,
+                        showticklabels=False,
+                        range=[
+                            min(x for x, _ in self.pos.values()) - 1.5,  # Wider view
+                            max(x for x, _ in self.pos.values()) + 1.5
+                        ]
+                    ),
+                    yaxis=dict(
+                        showgrid=False,
+                        zeroline=False,
+                        showticklabels=False,
+                        range=[
+                            min(y for _, y in self.pos.values()) - 1.5,
+                            max(y for _, y in self.pos.values()) + 1.5
+                        ]
+                    )
                 )
             )
 
