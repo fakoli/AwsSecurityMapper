@@ -54,6 +54,8 @@ def collect_security_groups(profiles: List[str], regions: List[str],
                     sg = aws_client.get_security_group_details(sg_id)
                     if sg:
                         security_groups.append(sg)
+                    else:
+                        logger.warning(f"Security group {sg_id} not found")
             else:
                 security_groups = aws_client.get_security_groups()
 
