@@ -7,7 +7,7 @@ from config import CACHE_DIR, CACHE_DURATION
 from utils import logger
 
 class CacheHandler:
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize cache handler and create cache directory if needed."""
         self.cache_dir = CACHE_DIR
         self._ensure_cache_dir()

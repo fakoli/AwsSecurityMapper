@@ -9,8 +9,15 @@ from tests.mock_data.security_groups import get_mock_security_groups
 from tests.mock_data.vpc_data import get_mock_vpc_details
 
 class AWSClient:
+    """AWS Client for interacting with EC2 security groups."""
+    
     def __init__(self, profile: str, region: str = DEFAULT_REGION):
-        """Initialize AWS client with specified profile and region."""
+        """Initialize AWS client with specified profile and region.
+        
+        Args:
+            profile: AWS profile name
+            region: AWS region name
+        """
         self.profile = profile
         self.region = region
         # Set mock mode if no AWS credentials or if profile is 'default'

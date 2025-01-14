@@ -1,10 +1,10 @@
 """Plotly implementation for graph visualization."""
-import plotly.graph_objects as go
-import networkx as nx
 from typing import Dict, List, Optional, Set, Tuple
-from .base import BaseVisualizer
-from utils import format_ports, get_friendly_cidr_name, logger
+import networkx as nx
+import plotly.graph_objects as go
 from config import config
+from utils import format_ports, get_friendly_cidr_name, logger
+from .base import BaseVisualizer
 
 class PlotlyVisualizer(BaseVisualizer):
     """Plotly-based visualization for security group relationships."""

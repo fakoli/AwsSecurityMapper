@@ -11,7 +11,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def get_friendly_cidr_name(cidr: str) -> str:
-    """Get a friendly name for a CIDR block."""
+    """Get a friendly name for a CIDR block.
+    
+    Args:
+        cidr: CIDR block string
+        
+    Returns:
+        str: A friendly name for the CIDR block
+    """
     # Get common CIDR names from config
     common_cidrs = config.common_cidrs
     if cidr in common_cidrs:
