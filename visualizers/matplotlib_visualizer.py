@@ -17,11 +17,11 @@ class MatplotlibVisualizer(BaseVisualizer):
         self.graph = nx.DiGraph()
         self.highlight_sg = None
         self.settings = config.get('visualization', 'matplotlib', default={})
-        self.node_size = self.settings.get('node_size', 3000)
-        self.font_size = self.settings.get('font_size', 10)
-        self.edge_width = self.settings.get('edge_width', 1.5)
-        self.vpc_spacing = self.settings.get('vpc_spacing', 5.0)
-        self.vpc_padding = self.settings.get('vpc_padding', 1.5)
+        self.node_size = self.settings.get('node_size', 4000)
+        self.font_size = self.settings.get('font_size', 11)
+        self.edge_width = self.settings.get('edge_width', 2.0)
+        self.vpc_spacing = self.settings.get('vpc_spacing', 6.0)
+        self.vpc_padding = self.settings.get('vpc_padding', 2.0)
         self.pos = None
 
         # Define styles for different edge types
@@ -213,7 +213,7 @@ class MatplotlibVisualizer(BaseVisualizer):
             x1, y1 = self.pos[v]
 
             # Calculate the curved path for proper label placement
-            rad = 0.2  # Curve radius
+            rad = 0.25  # Increased curve radius for better label separation
             dx = x1 - x0
             dy = y1 - y0
             dist = np.sqrt(dx * dx + dy * dy)
@@ -274,9 +274,9 @@ class MatplotlibVisualizer(BaseVisualizer):
                 self.graph,
                 self.pos,
                 nodelist=regular_nodes,
-                node_color='#3498DB',  # Blue
+                node_color='#2980B9',  # Darker blue
                 node_size=self.node_size,
-                alpha=0.8,
+                alpha=0.9,
                 label='Security Groups'
             )
 
@@ -482,11 +482,11 @@ class MatplotlibVisualizer(BaseVisualizer):
             loc='upper left',
             bbox_to_anchor=(1, 1),
             title='Network Elements',
-            title_fontsize=13,
+            title_fontsize=14,
             fontsize=12,
             frameon=True,
             facecolor='white',
-            edgecolor='#E0E0E0',
-            framealpha=0.95,
+            edgecolor='#BDBDBD',
+            framealpha=1.0,
             borderpad=1
         )
