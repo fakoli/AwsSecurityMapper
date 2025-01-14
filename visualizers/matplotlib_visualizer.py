@@ -249,11 +249,13 @@ class MatplotlibVisualizer(BaseVisualizer):
                 bbox=dict(
                     facecolor='white',
                     edgecolor=self.edge_styles[edge_type]['color'],
-                    alpha=0.95,  # Increased opacity for better readability
-                    pad=3,       # Increased padding
-                    boxstyle='round,pad=0.5'  # Rounded corners with more padding
+                    alpha=0.95,
+                    pad=2,
+                    boxstyle='round,pad=0.3'
                 ),
-                zorder=3  # Ensure labels are drawn above edges
+                zorder=3,
+                transform=plt.gca().transData,
+                clip_on=True
             )
 
     def _draw_nodes(self) -> None:
