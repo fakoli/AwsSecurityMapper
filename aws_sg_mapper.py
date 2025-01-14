@@ -20,10 +20,13 @@ def parse_arguments():
                        help='Clear cached data before running')
     parser.add_argument('--debug', action='store_true',
                        help='Enable debug logging')
+    parser.add_argument('--security-group-ids', nargs='+',
+                       help='Filter specific security group IDs (e.g., sg-123456)')
     return parser.parse_args()
 
 def collect_security_groups(profiles: List[str], regions: List[str], 
-                          cache_handler: CacheHandler) -> List[dict]:
+                          cache_handler: CacheHandler,
+                          security_group_ids: List[str] = None) -> List[dict]:
     """Collect security group data from specified profiles and regions."""
     all_security_groups = []
 
@@ -34,13 +37,25 @@ def collect_security_groups(profiles: List[str], regions: List[str],
             cached_data = cache_handler.get_cached_data(profile, region)
             if cached_data:
                 logger.info(f"Using cached data for {profile} in {region}")
-                all_security_groups.extend(cached_data)
+                if security_group_ids:
+                    filtered_groups = [sg for sg in cached_data if sg['GroupId'] in security_group_ids]
+                    all_security_groups.extend(filtered_groups)
+                else:
+                    all_security_groups.extend(cached_data)
                 continue
 
             # Fetch from AWS if not cached
             logger.debug(f"No cache found, fetching from AWS for {profile} in {region}")
             aws_client = AWSClient(profile, region)
-            security_groups = aws_client.get_security_groups()
+
+            if security_group_ids:
+                security_groups = []
+                for sg_id in security_group_ids:
+                    sg = aws_client.get_security_group_details(sg_id)
+                    if sg:
+                        security_groups.append(sg)
+            else:
+                security_groups = aws_client.get_security_groups()
 
             if security_groups:
                 logger.debug(f"Found {len(security_groups)} security groups")
@@ -57,7 +72,8 @@ def main():
         args = parse_arguments()
         setup_logging(args.debug)
         logger.info("Starting AWS Security Group Mapper")
-        logger.debug(f"Arguments: profiles={args.profiles}, regions={args.regions}, output={args.output}")
+        logger.debug(f"Arguments: profiles={args.profiles}, regions={args.regions}, "
+                    f"output={args.output}, security_group_ids={args.security_group_ids}")
 
         # Initialize handlers
         logger.debug("Initializing cache handler")
@@ -70,7 +86,8 @@ def main():
 
         # Collect security group data
         logger.info("Collecting security group data...")
-        security_groups = collect_security_groups(args.profiles, args.regions, cache_handler)
+        security_groups = collect_security_groups(args.profiles, args.regions, 
+                                               cache_handler, args.security_group_ids)
 
         if not security_groups:
             logger.error("No security groups found in any region/profile")
