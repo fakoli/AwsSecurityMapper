@@ -20,6 +20,8 @@ visualization:
     node_size: 30
     font_size: 12
     edge_width: 2
+    vpc_spacing: 2.5  # Increased spacing between VPC rectangles
+    vpc_padding: 0.4  # Padding between VPC boundaries
 
 # Common CIDR block names
 common_cidrs:

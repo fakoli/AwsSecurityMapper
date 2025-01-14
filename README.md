@@ -113,6 +113,8 @@ visualization:
     node_size: 30
     font_size: 12
     edge_width: 2
+    vpc_spacing: 2.5  # Controls spacing between VPC rectangles
+    vpc_padding: 0.4  # Padding between VPC boundaries
 
 # Common CIDR block names for better readability
 common_cidrs:
@@ -122,6 +124,13 @@ common_cidrs:
   "192.168.0.0/16": "Internal Network (Class C)"
   "127.0.0.0/8": "Localhost"
   "169.254.0.0/16": "Link Local"
+
+# Security group categories (for better organization)
+sg_categories:
+  web: ["http", "https", "www"]
+  database: ["mysql", "postgres", "mongodb", "redis"]
+  management: ["ssh", "rdp", "winrm"]
+  monitoring: ["prometheus", "grafana", "cloudwatch"]
 ```
 
 ## Usage Examples
