@@ -86,6 +86,11 @@ poetry install
 python aws_sg_mapper.py --profiles default --regions us-east-1
 ```
 
+The tool will generate output files in the `out/` directory by default. Generated files include:
+- `sg_map.html`: Interactive visualization (Plotly)
+- `sg_map.png`: Static visualization (Matplotlib)
+- Per-security-group maps when using `--output-per-sg` flag
+
 ## Configuration
 
 The tool uses a YAML configuration file (`config.yaml`) for customization:
