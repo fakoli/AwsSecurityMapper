@@ -61,6 +61,10 @@ class MatplotlibVisualizer(BaseVisualizer):
         to_port = permission.get('ToPort', -1)
         protocol = permission.get('IpProtocol', '-1')
 
+        port_info = format_ports(from_port, to_port)
+        if protocol == '-1':
+            protocol = 'All'
+
         # Handle security group references
         for group_pair in permission.get('UserIdGroupPairs', []):
             source_id = group_pair.get('GroupId')
@@ -69,18 +73,20 @@ class MatplotlibVisualizer(BaseVisualizer):
             if source_id:
                 if source_id not in self.graph:
                     self.graph.add_node(source_id,
-                                      name=f"Security Group {source_id}",
-                                      description="Referenced Security Group",
-                                      vpc_id=source_vpc,
-                                      type='security_group',
-                                      is_highlighted=source_id == self.highlight_sg)
+                                    name=f"Security Group {source_id}",
+                                    description="Referenced Security Group",
+                                    vpc_id=source_vpc,
+                                    type='security_group',
+                                    is_highlighted=source_id == self.highlight_sg)
 
-                edge_label = f"[Ingress]\n{protocol}:{format_ports(from_port, to_port)}"
+                edge_label = f"{protocol}\n{port_info}"
                 is_cross_vpc = vpc_id != source_vpc and source_vpc != 'Unknown VPC'
                 self.graph.add_edge(source_id, target_group_id,
-                                  label=edge_label,
-                                  ports=f"{from_port}-{to_port}",
-                                  is_cross_vpc=is_cross_vpc)
+                                label=edge_label,
+                                protocol=protocol,
+                                ports=port_info,
+                                is_cross_vpc=is_cross_vpc,
+                                direction='ingress')
 
         # Handle CIDR ranges
         for ip_range in permission.get('IpRanges', []):
@@ -89,11 +95,13 @@ class MatplotlibVisualizer(BaseVisualizer):
                 friendly_name = get_friendly_cidr_name(cidr)
                 cidr_node = f"CIDR: {friendly_name}"
                 self.graph.add_node(cidr_node, name=friendly_name, type='cidr')
-                edge_label = f"[Ingress]\n{protocol}:{format_ports(from_port, to_port)}"
+                edge_label = f"{protocol}\n{port_info}"
                 self.graph.add_edge(cidr_node, target_group_id,
-                                  label=edge_label,
-                                  ports=f"{from_port}-{to_port}",
-                                  is_cross_vpc=False)
+                                label=edge_label,
+                                protocol=protocol,
+                                ports=port_info,
+                                is_cross_vpc=False,
+                                direction='ingress')
 
     def _draw_vpc_groups(self) -> None:
         """Draw VPC boundaries and labels."""
@@ -203,37 +211,87 @@ class MatplotlibVisualizer(BaseVisualizer):
             )
 
     def _draw_edges(self) -> None:
-        """Draw edges with proper styling."""
+        """Draw edges with proper styling and arrows."""
         if not self.graph.edges():
             return
 
         # Separate edges by type
-        cross_vpc_edges = [(u, v) for u, v, d in self.graph.edges(data=True)
-                          if d.get('is_cross_vpc', False)]
-        normal_edges = [(u, v) for u, v, d in self.graph.edges(data=True)
-                       if not d.get('is_cross_vpc', False)]
+        edge_groups = {
+            'same_vpc': [],
+            'cross_vpc': []
+        }
+
+        for (u, v, d) in self.graph.edges(data=True):
+            edge_type = 'cross_vpc' if d.get('is_cross_vpc', False) else 'same_vpc'
+            edge_groups[edge_type].append((u, v))
+
+            # Calculate edge midpoint for label placement
+            x0, y0 = self.pos[u]
+            x1, y1 = self.pos[v]
+            mid_x = (x0 + x1) / 2
+            mid_y = (y0 + y1) / 2
+
+            # Add protocol and port information
+            protocol = d.get('protocol', 'All')
+            ports = d.get('ports', '')
+
+            # Create edge label with port/protocol info
+            label = f"{protocol}\n{ports}"
+
+            # Add arrow indicator text
+            arrow_text = "◄ INGRESS"
+
+            # Position the labels
+            plt.annotate(
+                label,
+                xy=(mid_x, mid_y),
+                xytext=(0, 10),  # Offset above the line
+                textcoords='offset points',
+                ha='center',
+                va='bottom',
+                bbox=dict(
+                    boxstyle='round,pad=0.5',
+                    fc='white',
+                    ec='gray',
+                    alpha=0.7
+                ),
+                fontsize=self.font_size-2
+            )
+
+            # Add directional indicator
+            plt.annotate(
+                arrow_text,
+                xy=(mid_x, mid_y),
+                xytext=(0, -15),  # Offset below the line
+                textcoords='offset points',
+                ha='center',
+                va='top',
+                color=self.edge_styles[edge_type]['color'],
+                fontweight='bold',
+                fontsize=self.font_size-2
+            )
 
         # Draw normal edges (same VPC)
-        if normal_edges:
+        if edge_groups['same_vpc']:
             nx.draw_networkx_edges(
                 self.graph,
                 self.pos,
-                edgelist=normal_edges,
+                edgelist=edge_groups['same_vpc'],
                 edge_color=self.edge_styles['same_vpc']['color'],
                 width=self.edge_styles['same_vpc']['width'] * self.edge_width,
                 arrowsize=25,
                 alpha=0.7,
                 arrowstyle='->',
                 connectionstyle='arc3,rad=0.2',
-                label='Ingress Rule (Same VPC)'
+                label='Ingress (Same VPC)'
             )
 
         # Draw cross-VPC edges
-        if cross_vpc_edges:
+        if edge_groups['cross_vpc']:
             nx.draw_networkx_edges(
                 self.graph,
                 self.pos,
-                edgelist=cross_vpc_edges,
+                edgelist=edge_groups['cross_vpc'],
                 edge_color=self.edge_styles['cross_vpc']['color'],
                 width=self.edge_styles['cross_vpc']['width'] * self.edge_width,
                 arrowsize=30,
@@ -241,7 +299,7 @@ class MatplotlibVisualizer(BaseVisualizer):
                 alpha=0.8,
                 arrowstyle='->',
                 connectionstyle='arc3,rad=0.2',
-                label='Ingress Rule (Cross-VPC)'
+                label='Ingress (Cross-VPC)'
             )
 
     def _draw_labels(self) -> None:
@@ -271,35 +329,17 @@ class MatplotlibVisualizer(BaseVisualizer):
             )
         )
 
-        # Edge labels
-        edge_labels = nx.get_edge_attributes(self.graph, 'label')
-        if edge_labels:
-            nx.draw_networkx_edge_labels(
-                self.graph,
-                self.pos,
-                edge_labels=edge_labels,
-                font_size=self.font_size-2,
-                bbox=dict(
-                    facecolor='white',
-                    alpha=0.7,
-                    edgecolor='none'
-                ),
-                rotate=False
-            )
+        # Edge labels (handled within _draw_edges now)
+
 
     def _add_legend(self) -> None:
         """Add a legend to the visualization."""
-        # Create legend elements list
-        legend_elements = []
-
-        # Node types
-        legend_elements.extend([
+        legend_elements = [
             plt.Line2D([0], [0], marker='o', color='w',
                       markerfacecolor='#5B9BD5', markersize=15,
-                      label='Security Groups'),
-        ])
+                      label='Security Groups')
+        ]
 
-        # Only add highlighted security group to legend if it exists
         if self.highlight_sg:
             legend_elements.append(
                 plt.Line2D([0], [0], marker='o', color='w',
@@ -311,18 +351,14 @@ class MatplotlibVisualizer(BaseVisualizer):
             plt.Line2D([0], [0], marker='s', color='w',
                       markerfacecolor='#70AD47', markersize=15,
                       label='CIDR Blocks'),
-        ])
-
-        # Connection types with directional arrows
-        legend_elements.extend([
             plt.Line2D([0], [0], color='#404040',
                       marker='>', markersize=10,
                       linestyle='solid', linewidth=2,
-                      label='Ingress Rule (Same VPC)'),
+                      label='Ingress (Same VPC)'),
             plt.Line2D([0], [0], color='#FF6B6B',
                       marker='>', markersize=10,
                       linestyle='dashed', linewidth=2,
-                      label='Ingress Rule (Cross-VPC)'),
+                      label='Ingress (Cross-VPC)'),
             plt.Rectangle((0, 0), 1, 1,
                         facecolor='#f8f9fa',
                         edgecolor='#6c757d',
@@ -330,7 +366,6 @@ class MatplotlibVisualizer(BaseVisualizer):
                         label='VPC Boundary')
         ])
 
-        # Create legend with improved layout
         plt.legend(
             handles=legend_elements,
             loc='upper left',
@@ -353,8 +388,6 @@ class MatplotlibVisualizer(BaseVisualizer):
 
         try:
             plt.figure(figsize=(20, 20))
-
-            # Create spring layout with increased spacing
             self.pos = nx.spring_layout(self.graph, k=3, iterations=50)
 
             self._draw_vpc_groups()
@@ -363,7 +396,6 @@ class MatplotlibVisualizer(BaseVisualizer):
             self._draw_labels()
             self._add_legend()
 
-            # Set title
             if title:
                 plt.title(title, fontsize=16, pad=20)
             else:
