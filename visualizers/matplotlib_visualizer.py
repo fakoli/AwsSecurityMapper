@@ -343,8 +343,11 @@ class MatplotlibVisualizer(BaseVisualizer):
 
     def _generate_layout(self) -> None:
         """Generate the layout with VPC grouping."""
-        # Create initial spring layout
-        initial_pos = nx.spring_layout(self.graph, k=3.0, iterations=50)
+        # Use faster layout algorithm for large graphs
+        if len(self.graph) > 1000:
+            initial_pos = nx.kamada_kawai_layout(self.graph)
+        else:
+            initial_pos = nx.spring_layout(self.graph, k=3.0, iterations=50)
         if not initial_pos:
             logger.error("Failed to generate layout positions")
             return

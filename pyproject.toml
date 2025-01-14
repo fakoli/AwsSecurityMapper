@@ -8,5 +8,7 @@ dependencies = [
     "botocore>=1.35.98",
     "matplotlib>=3.10.0",
     "networkx>=3.4.2",
+    "psutil>=6.1.1",
+    "pytest>=8.3.4",
     "pyyaml>=6.0.2",
 ]

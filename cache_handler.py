@@ -5,6 +5,9 @@ from typing import Dict, Optional, List
 from pathlib import Path
 from config import CACHE_DIR, CACHE_DURATION
 from utils import logger
+import pickle
+import mmap
+
 
 class CacheHandler:
     def __init__(self):
@@ -28,8 +31,10 @@ class CacheHandler:
             return None
 
         try:
-            with open(cache_path, 'r') as f:
-                cache_data = json.load(f)
+            with open(cache_path, 'rb') as f:  #Open in binary mode for mmap
+                mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
+                cache_data = pickle.loads(mm)
+                mm.close() #Close the mmap object
 
             if time.time() - cache_data['timestamp'] > CACHE_DURATION:
                 logger.debug("Cache expired")
@@ -49,8 +54,8 @@ class CacheHandler:
                 'timestamp': time.time(),
                 'data': data
             }
-            with open(cache_path, 'w') as f:
-                json.dump(cache_data, f)
+            with open(cache_path, 'wb') as f: #Open in binary write mode for pickle
+                pickle.dump(cache_data, f)
             logger.debug(f"Data cached successfully for {profile} in {region}")
         except Exception as e:
             logger.error(f"Error saving to cache: {str(e)}")
