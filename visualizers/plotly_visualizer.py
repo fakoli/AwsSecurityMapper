@@ -13,10 +13,10 @@ class PlotlyVisualizer(BaseVisualizer):
         """Initialize the visualizer."""
         self.graph = nx.DiGraph()
         self.highlight_sg = None
-        self.settings = config.get('visualization', 'plotly', default={})
-        self.node_size = self.settings.get('node_size', 30)
-        self.font_size = self.settings.get('font_size', 12)
-        self.edge_width = self.settings.get('edge_width', 2)
+        self.settings = config.get("visualization", "plotly", default={})
+        self.node_size = self.settings.get("node_size", 30)
+        self.font_size = self.settings.get("font_size", 12)
+        self.edge_width = self.settings.get("edge_width", 2)
 
     def clear(self) -> None:
         """Clear the current graph data."""

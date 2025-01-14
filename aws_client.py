@@ -14,7 +14,9 @@ class AWSClient:
         self.profile = profile
         self.region = region
         # Set mock mode if no AWS credentials or if profile is 'default'
-        self.use_mock = profile == 'default' or not (os.getenv('AWS_ACCESS_KEY_ID') and os.getenv('AWS_SECRET_ACCESS_KEY'))
+        self.use_mock = profile == "default" or not (
+            os.getenv("AWS_ACCESS_KEY_ID") and os.getenv("AWS_SECRET_ACCESS_KEY")
+        )
 
         if not self.use_mock:
             self.session = boto3.Session(
