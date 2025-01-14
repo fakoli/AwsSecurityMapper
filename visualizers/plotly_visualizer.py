@@ -26,7 +26,7 @@ class PlotlyVisualizer(BaseVisualizer):
             'regular_sg': '#2980B9',     # Blue for regular security groups
             'highlighted_sg': '#E74C3C',  # Red for highlighted security group
             'cidr': '#27AE60',           # Green for CIDR blocks
-            'same_vpc_edge': '#34495E',   # Dark gray for same VPC edges
+            'same_vpc_edge': '#2E4053',   # Dark blue-grey for same VPC edges
             'cross_vpc_edge': '#E74C3C',  # Red for cross-VPC edges
             'edge_hover': '#2C3E50',      # Dark blue-gray for edge hovers
             'vpc_boundary': '#FFFFFF',    # White for VPC boundaries
@@ -139,18 +139,7 @@ class PlotlyVisualizer(BaseVisualizer):
                 f"{'Cross-VPC' if is_cross_vpc else 'Same VPC'} Connection"
             )
 
-            # Calculate curved path for better visualization
-            mid_x = (x0 + x1) * 0.5
-            mid_y = (y0 + y1) * 0.5
-
-            # Enhanced edge label with better formatting
-            edge_label = (
-                f"{edge[2].get('protocol', 'All')}:"
-                f"{edge[2].get('ports', 'All')}\n"
-                f"{edge[2].get('direction', 'INGRESS')}"
-            )
-
-            # Line trace with improved styling
+            # Line trace with improved styling to match reference
             edge_traces.append(go.Scatter(
                 x=[x0, x1],
                 y=[y0, y1],
@@ -161,24 +150,21 @@ class PlotlyVisualizer(BaseVisualizer):
                 ),
                 hoverinfo='text',
                 hovertext=hover_text,
-                text=edge_label,
-                textposition='middle center',
-                mode='lines+text',
-                textfont=dict(
-                    size=self.font_size,
-                    color=self.colors['edge_hover']
-                ),
-                showlegend=False
+                mode='lines',
+                showlegend=True,
+                name='Cross-VPC Connection' if is_cross_vpc else 'Same VPC Connection'
             ))
 
-            # Arrow trace
+            # Add arrow at midpoint
+            mid_x = (x0 + x1) * 0.5
+            mid_y = (y0 + y1) * 0.5
             edge_traces.append(go.Scatter(
                 x=[mid_x],
                 y=[mid_y],
                 mode='markers',
                 marker=dict(
                     symbol='arrow-right',
-                    size=12,  # Slightly larger arrows
+                    size=12,
                     color=self.colors['cross_vpc_edge'] if is_cross_vpc else self.colors['same_vpc_edge'],
                     angle=45 if y1 > y0 else -45
                 ),
@@ -294,7 +280,7 @@ class PlotlyVisualizer(BaseVisualizer):
             vpc_pos = [self.pos[node] for node in nodes]
             min_x = max(prev_vpc_max_x + vpc_padding,
                        min(x for x, y in vpc_pos) - vpc_padding)
-            max_x = min_x + (max(x for x, y in vpc_pos) - 
+            max_x = min_x + (max(x for x, y in vpc_pos) -
                            min(x for x, y in vpc_pos)) + 2 * vpc_padding
             min_y = min(y for x, y in vpc_pos) - vpc_padding
             max_y = max(y for x, y in vpc_pos) + vpc_padding
