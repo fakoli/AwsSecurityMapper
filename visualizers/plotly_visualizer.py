@@ -137,6 +137,13 @@ class PlotlyVisualizer(BaseVisualizer):
                 f"Direction: {edge[2].get('direction', 'INGRESS')}"
             )
 
+            # Calculate midpoint for label
+            mid_x = (x0 + x1) * 0.5
+            mid_y = (y0 + y1) * 0.5
+            
+            # Create edge label
+            edge_label = f"{edge[2].get('protocol', 'All')}:{edge[2].get('ports', 'All')}\n{edge[2].get('direction', 'INGRESS')}"
+            
             # Line trace
             edge_traces.append(go.Scatter(
                 x=[x0, x1], y=[y0, y1],
@@ -147,7 +154,10 @@ class PlotlyVisualizer(BaseVisualizer):
                 ),
                 hoverinfo='text',
                 hovertext=hover_text,
-                mode='lines',
+                text=edge_label,
+                textposition='middle center',
+                mode='lines+text',
+                textfont=dict(size=10, color='black'),
                 showlegend=False
             ))
 
