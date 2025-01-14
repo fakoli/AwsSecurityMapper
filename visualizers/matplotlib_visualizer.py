@@ -41,11 +41,11 @@ class MatplotlibVisualizer(BaseVisualizer):
 
             # Add the security group node
             self.graph.add_node(group_id,
-                            name=group_name,
-                            description=description,
-                            vpc_id=vpc_id,
-                            type='security_group',
-                            is_highlighted=group_id == highlight_sg)
+                                name=group_name,
+                                description=description,
+                                vpc_id=vpc_id,
+                                type='security_group',
+                                is_highlighted=group_id == highlight_sg)
 
             # Process inbound rules
             for permission in sg.get('IpPermissions', []):
@@ -65,18 +65,18 @@ class MatplotlibVisualizer(BaseVisualizer):
             if source_id:
                 if source_id not in self.graph:
                     self.graph.add_node(source_id,
-                                    name=f"Security Group {source_id}",
-                                    description="Referenced Security Group",
-                                    vpc_id=source_vpc,
-                                    type='security_group',
-                                    is_highlighted=source_id == self.highlight_sg)
+                                        name=f"Security Group {source_id}",
+                                        description="Referenced Security Group",
+                                        vpc_id=source_vpc,
+                                        type='security_group',
+                                        is_highlighted=source_id == self.highlight_sg)
 
                 edge_label = f"{protocol}:{format_ports(from_port, to_port)}"
                 is_cross_vpc = vpc_id != source_vpc and source_vpc != 'Unknown VPC'
                 self.graph.add_edge(source_id, target_group_id,
-                                label=edge_label,
-                                ports=f"{from_port}-{to_port}",
-                                is_cross_vpc=is_cross_vpc)
+                                    label=edge_label,
+                                    ports=f"{from_port}-{to_port}",
+                                    is_cross_vpc=is_cross_vpc)
 
         # Handle CIDR ranges
         for ip_range in permission.get('IpRanges', []):
@@ -87,9 +87,9 @@ class MatplotlibVisualizer(BaseVisualizer):
                 self.graph.add_node(cidr_node, name=friendly_name, type='cidr')
                 edge_label = f"{protocol}:{format_ports(from_port, to_port)}"
                 self.graph.add_edge(cidr_node, target_group_id,
-                                label=edge_label,
-                                ports=f"{from_port}-{to_port}",
-                                is_cross_vpc=False)
+                                    label=edge_label,
+                                    ports=f"{from_port}-{to_port}",
+                                    is_cross_vpc=False)
 
     def generate_visualization(self, output_path: str, title: Optional[str] = None) -> None:
         """Generate and save the graph visualization using matplotlib."""
@@ -246,6 +246,7 @@ class MatplotlibVisualizer(BaseVisualizer):
                        if not d.get('is_cross_vpc', False)]
 
         if normal_edges:
+            # Draw normal edges (ingress)
             nx.draw_networkx_edges(
                 self.graph,
                 self.pos,
@@ -253,10 +254,12 @@ class MatplotlibVisualizer(BaseVisualizer):
                 edge_color='#404040',
                 width=self.edge_width * 1.2,
                 arrowsize=25,
-                alpha=0.7
+                alpha=0.7,
+                arrowstyle='->'  # Add arrow to show direction
             )
 
         if cross_vpc_edges:
+            # Draw cross-VPC edges (ingress across VPCs)
             nx.draw_networkx_edges(
                 self.graph,
                 self.pos,
@@ -265,7 +268,8 @@ class MatplotlibVisualizer(BaseVisualizer):
                 width=self.edge_width * 1.5,
                 arrowsize=30,
                 style='dashed',
-                alpha=0.8
+                alpha=0.8,
+                arrowstyle='->'  # Add arrow to show direction
             )
 
     def _draw_labels(self) -> None:
@@ -312,29 +316,41 @@ class MatplotlibVisualizer(BaseVisualizer):
 
     def _add_legend(self) -> None:
         """Add a legend to the visualization."""
-        legend_elements = [
+        legend_elements = []
+
+        # Node types
+        legend_elements.extend([
             plt.Line2D([0], [0], marker='o', color='w',
                       markerfacecolor='#5B9BD5', markersize=15,
                       label='Security Groups'),
-            plt.Line2D([0], [0], marker='s', color='w',
-                      markerfacecolor='#70AD47', markersize=15,
-                      label='CIDR Blocks'),
-            plt.Line2D([0], [0], color='#404040', lw=2,
-                      label='Same VPC Reference'),
-            plt.Line2D([0], [0], color='#FF6B6B', lw=2,
-                      linestyle='--', label='Cross-VPC Reference'),
-            plt.Rectangle((0, 0), 1, 1, fill=False,
-                        color='gray', linestyle='--',
-                        label='VPC Boundary')
-        ]
+        ])
 
+        # Only add highlighted security group to legend if it exists
         if self.highlight_sg:
-            legend_elements.insert(
-                1,
+            legend_elements.append(
                 plt.Line2D([0], [0], marker='o', color='w',
                           markerfacecolor='#FF6B6B', markersize=15,
                           label='Target Security Group')
             )
+
+        legend_elements.extend([
+            plt.Line2D([0], [0], marker='s', color='w',
+                      markerfacecolor='#70AD47', markersize=15,
+                      label='CIDR Blocks'),
+        ])
+
+        # Connection types
+        legend_elements.extend([
+            plt.Line2D([0], [0], color='#404040', lw=2,
+                      label='Ingress Rule (Same VPC)', 
+                      marker='>', markersize=10),
+            plt.Line2D([0], [0], color='#FF6B6B', lw=2,
+                      linestyle='--', label='Ingress Rule (Cross-VPC)',
+                      marker='>', markersize=10),
+            plt.Rectangle((0, 0), 1, 1, fill=False,
+                        color='gray', linestyle='--',
+                        label='VPC Boundary')
+        ])
 
         plt.legend(
             handles=legend_elements,

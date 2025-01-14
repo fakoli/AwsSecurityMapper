@@ -112,7 +112,7 @@ class PlotlyVisualizer(BaseVisualizer):
                     cidr_nodes.append(node)
 
             # Create spring layout with increased spacing
-            pos = nx.spring_layout(self.graph, k=3)  # Increased k parameter for more spread
+            pos = nx.spring_layout(self.graph, k=3)  
 
             # Calculate total width needed for all VPCs
             vpc_count = len(vpc_groups)
@@ -191,44 +191,55 @@ class PlotlyVisualizer(BaseVisualizer):
                     bgcolor="rgba(255, 255, 255, 0.8)"
                 )
 
-            # Add edges
-            edge_x = []
-            edge_y = []
-            edge_text = []
-            cross_vpc_edges = []
-            normal_edges = []
-
+            # Add edges with arrows
             for edge in self.graph.edges(data=True):
                 x0, y0 = pos[edge[0]]
                 x1, y1 = pos[edge[1]]
                 is_cross_vpc = edge[2].get('is_cross_vpc', False)
+                label = edge[2].get('label', '')
+
+                # Calculate arrow position (80% along the edge)
+                arrow_x = x0 + 0.8 * (x1 - x0)
+                arrow_y = y0 + 0.8 * (y1 - y0)
 
                 if is_cross_vpc:
-                    cross_vpc_edges.append((x0, y0, x1, y1, edge[2].get('label', '')))
+                    line_color = '#FF6B6B'
+                    line_dash = 'dash'
+                    name = 'Ingress Rule (Cross-VPC)'
                 else:
-                    normal_edges.append((x0, y0, x1, y1, edge[2].get('label', '')))
+                    line_color = '#404040'
+                    line_dash = None
+                    name = 'Ingress Rule (Same VPC)'
 
-            # Add normal edges
-            for x0, y0, x1, y1, label in normal_edges:
+                # Add edge line
                 fig.add_trace(go.Scatter(
-                    x=[x0, x1, None],
-                    y=[y0, y1, None],
+                    x=[x0, x1],
+                    y=[y0, y1],
                     mode='lines',
-                    line=dict(color='#404040', width=self.edge_width),
+                    line=dict(
+                        color=line_color,
+                        width=self.edge_width,
+                        dash=line_dash
+                    ),
                     hoverinfo='text',
                     text=label,
-                    showlegend=False
+                    showlegend=True,
+                    name=name,
+                    legendgroup=name,
+                    legendgrouptitle_text="Connection Types"
                 ))
 
-            # Add cross-VPC edges
-            for x0, y0, x1, y1, label in cross_vpc_edges:
+                # Add arrow marker
                 fig.add_trace(go.Scatter(
-                    x=[x0, x1, None],
-                    y=[y0, y1, None],
-                    mode='lines',
-                    line=dict(color='#FF6B6B', width=self.edge_width, dash='dash'),
-                    hoverinfo='text',
-                    text=label,
+                    x=[arrow_x],
+                    y=[arrow_y],
+                    mode='markers',
+                    marker=dict(
+                        symbol='triangle-right',
+                        size=15,
+                        color=line_color,
+                        angle=45
+                    ),
                     showlegend=False
                 ))
 
@@ -275,7 +286,7 @@ class PlotlyVisualizer(BaseVisualizer):
                     name='CIDR Blocks'
                 ))
 
-            # Update layout
+            # Update layout with improved legend grouping
             fig.update_layout(
                 title=dict(
                     text=title or "AWS Security Group Relationships",
@@ -284,6 +295,10 @@ class PlotlyVisualizer(BaseVisualizer):
                     font=dict(size=16)
                 ),
                 showlegend=True,
+                legend=dict(
+                    groupclick="toggleitem",
+                    tracegroupgap=5
+                ),
                 hovermode='closest',
                 margin=dict(b=20, l=5, r=5, t=40),
                 xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),

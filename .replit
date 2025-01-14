@@ -19,6 +19,10 @@ args = "AWS SG Mapper"
 task = "workflow.run"
 args = "AWS SG Mapper Test"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "HTML Server"
+
 [[workflows.workflow]]
 name = "AWS SG Mapper"
 author = "agent"
@@ -47,5 +51,24 @@ task = "packager.installForAll"
 task = "shell.exec"
 args = "python aws_sg_mapper.py --profiles default --debug --clear-cache"
 
+[[workflows.workflow]]
+name = "HTML Server"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3 -m http.server 3000"
+waitForPort = 3000
+
 [deployment]
 run = ["sh", "-c", "python aws_sg_mapper.py --profiles default --debug --clear-cache"]
+
+[[ports]]
+localPort = 3000
+externalPort = 80
