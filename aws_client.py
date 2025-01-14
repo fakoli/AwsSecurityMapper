@@ -5,8 +5,8 @@ from typing import Dict, List, Optional
 from botocore.exceptions import ClientError
 from config import DEFAULT_REGION, MAX_RETRIES, RETRY_DELAY
 from utils import logger
-from tests.mocks.security_groups import get_mock_security_groups
-from tests.mocks.vpc_data import get_mock_vpc_details
+from tests.mock_data.security_groups import get_mock_security_groups
+from tests.mock_data.vpc_data import get_mock_vpc_details
 
 class AWSClient:
     def __init__(self, profile: str, region: str = DEFAULT_REGION):

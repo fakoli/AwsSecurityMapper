@@ -1,0 +1,38 @@
+# Cache configuration
+cache:
+  directory: "~/.aws-sg-mapper/cache"
+  duration: 3600  # Cache validity in seconds
+
+# AWS configuration
+aws:
+  default_region: "us-east-1"
+  max_retries: 3
+  retry_delay: 5  # seconds
+
+# Graph visualization settings
+visualization:
+  default_engine: "plotly"  # or "matplotlib"
+  matplotlib:
+    node_size: 2000
+    font_size: 8
+    edge_width: 1
+  plotly:
+    node_size: 30
+    font_size: 12
+    edge_width: 2
+
+# Common CIDR block names
+common_cidrs:
+  "0.0.0.0/0": "Internet"
+  "10.0.0.0/8": "Internal Network (Class A)"
+  "172.16.0.0/12": "Internal Network (Class B)"
+  "192.168.0.0/16": "Internal Network (Class C)"
+  "127.0.0.0/8": "Localhost"
+  "169.254.0.0/16": "Link Local"
+
+# Security group categories (for better organization)
+sg_categories:
+  web: ["http", "https", "www"]
+  database: ["mysql", "postgres", "mongodb", "redis"]
+  management: ["ssh", "rdp", "winrm"]
+  monitoring: ["prometheus", "grafana", "cloudwatch"]

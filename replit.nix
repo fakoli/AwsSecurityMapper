@@ -1,5 +1,6 @@
 {pkgs}: {
   deps = [
+    pkgs.libyaml
     pkgs.tk
     pkgs.tcl
     pkgs.qhull
