@@ -63,8 +63,8 @@ task = "packager.installForAll"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "mkdir -p out && python -m http.server --bind 0.0.0.0 3000 --directory out"
-waitForPort = 3000
+args = "mkdir -p out && python -m http.server --bind 0.0.0.0 7000 --directory out"
+waitForPort = 7000
 
 [deployment]
 run = ["sh", "-c", "python aws_sg_mapper.py --profiles default --debug --clear-cache"]
@@ -72,3 +72,11 @@ run = ["sh", "-c", "python aws_sg_mapper.py --profiles default --debug --clear-c
 [[ports]]
 localPort = 3000
 externalPort = 80
+
+[[ports]]
+localPort = 7000
+externalPort = 3000
+
+[[ports]]
+localPort = 8080
+externalPort = 8080

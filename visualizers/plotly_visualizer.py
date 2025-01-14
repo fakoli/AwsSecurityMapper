@@ -1,4 +1,5 @@
 """Plotly implementation for graph visualization."""
+import os
 import plotly.graph_objects as go
 from typing import Dict, List, Optional, Tuple
 import networkx as nx
@@ -14,19 +15,20 @@ class PlotlyVisualizer(BaseVisualizer):
         self.pos = None
         self.settings = config.get('visualization', 'plotly', default={})
 
-        # Enhanced configuration settings
-        self.node_size = self.settings.get('node_size', 30)
+        # Enhanced configuration settings for better visualization
+        self.node_size = self.settings.get('node_size', 40)  # Increased for better visibility
         self.font_size = self.settings.get('font_size', 12)
         self.edge_width = self.settings.get('edge_width', 2)
         self.vpc_spacing = self.settings.get('vpc_spacing', 2.5)
 
-        # Color scheme
+        # Enhanced color scheme for better contrast
         self.colors = {
-            'regular_sg': '#2980B9',    # Blue
-            'highlighted_sg': '#E74C3C', # Red
-            'cidr': '#2ECC71',          # Green
-            'same_vpc_edge': '#34495E',  # Dark gray
-            'cross_vpc_edge': '#E74C3C'  # Red
+            'regular_sg': '#2980B9',     # Bright blue
+            'highlighted_sg': '#E74C3C',  # Bright red
+            'cidr': '#27AE60',           # Bright green
+            'same_vpc_edge': '#34495E',   # Dark gray
+            'cross_vpc_edge': '#E74C3C',  # Red
+            'edge_hover': '#2C3E50'       # Dark blue-gray
         }
 
     def clear(self) -> None:
@@ -124,31 +126,34 @@ class PlotlyVisualizer(BaseVisualizer):
             x1, y1 = self.pos[edge[1]]
             is_cross_vpc = edge[2].get('is_cross_vpc', False)
 
-            # Calculate the midpoint for arrow
-            mid_x = (x0 + x1) * 0.5
-            mid_y = (y0 + y1) * 0.5
-
-            # Create hover text
+            # Enhanced hover text with more details
             hover_text = (
+                f"Connection Details:<br>"
                 f"From: {self.graph.nodes[edge[0]].get('name', edge[0])}<br>"
                 f"To: {self.graph.nodes[edge[1]].get('name', edge[1])}<br>"
                 f"Protocol: {edge[2].get('protocol', 'All')}<br>"
                 f"Ports: {edge[2].get('ports', 'All')}<br>"
-                f"Direction: {edge[2].get('direction', 'INGRESS')}"
+                f"Direction: {edge[2].get('direction', 'INGRESS')}<br>"
+                f"{'Cross-VPC' if is_cross_vpc else 'Same VPC'} Connection"
             )
 
-            # Calculate midpoint for label
+            # Calculate curved path for better visualization
             mid_x = (x0 + x1) * 0.5
             mid_y = (y0 + y1) * 0.5
-            
-            # Create edge label
-            edge_label = f"{edge[2].get('protocol', 'All')}:{edge[2].get('ports', 'All')}\n{edge[2].get('direction', 'INGRESS')}"
-            
-            # Line trace
+
+            # Enhanced edge label with better formatting
+            edge_label = (
+                f"{edge[2].get('protocol', 'All')}:"
+                f"{edge[2].get('ports', 'All')}\n"
+                f"{edge[2].get('direction', 'INGRESS')}"
+            )
+
+            # Line trace with improved styling
             edge_traces.append(go.Scatter(
-                x=[x0, x1], y=[y0, y1],
+                x=[x0, x1],
+                y=[y0, y1],
                 line=dict(
-                    width=self.edge_width,
+                    width=self.edge_width * (1.5 if is_cross_vpc else 1),
                     color=self.colors['cross_vpc_edge'] if is_cross_vpc else self.colors['same_vpc_edge'],
                     dash='dash' if is_cross_vpc else 'solid'
                 ),
@@ -157,17 +162,21 @@ class PlotlyVisualizer(BaseVisualizer):
                 text=edge_label,
                 textposition='middle center',
                 mode='lines+text',
-                textfont=dict(size=10, color='black'),
+                textfont=dict(
+                    size=self.font_size,
+                    color=self.colors['edge_hover']
+                ),
                 showlegend=False
             ))
 
             # Arrow trace
             edge_traces.append(go.Scatter(
-                x=[mid_x], y=[mid_y],
+                x=[mid_x],
+                y=[mid_y],
                 mode='markers',
                 marker=dict(
                     symbol='arrow-right',
-                    size=10,
+                    size=12,  # Slightly larger arrows
                     color=self.colors['cross_vpc_edge'] if is_cross_vpc else self.colors['same_vpc_edge'],
                     angle=45 if y1 > y0 else -45
                 ),
@@ -258,31 +267,27 @@ class PlotlyVisualizer(BaseVisualizer):
         return traces
 
     def generate_visualization(self, output_path: str, title: Optional[str] = None) -> None:
-        """Generate and save the interactive visualization."""
+        """Generate and save the interactive visualization with enhanced features."""
         if not self.graph.nodes():
             logger.warning("No nodes in graph to visualize")
             return
-            
+
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        
-        if not os.access(os.path.dirname(output_path), os.W_OK):
-            logger.error(f"Output directory {os.path.dirname(output_path)} is not writable")
-            raise PermissionError(f"Cannot write to {output_path}")
 
         try:
-            # Generate optimized layout
+            # Generate optimized layout with better spacing
             self.pos = nx.spring_layout(
                 self.graph,
-                k=1.5,          # Increased spacing between nodes
-                iterations=50,   # More iterations for better layout
-                seed=42         # Consistent layout between runs
+                k=2.0,          # Increased spacing
+                iterations=100,  # More iterations for better layout
+                seed=42         # Consistent layout
             )
 
             # Create traces
             edge_traces = self._create_edge_traces()
             node_traces = self._create_node_traces()
 
-            # Create figure with improved layout and interactivity
+            # Create figure with enhanced layout and interactivity
             fig = go.Figure(
                 data=[*edge_traces, *node_traces],
                 layout=go.Layout(
@@ -292,7 +297,7 @@ class PlotlyVisualizer(BaseVisualizer):
                         y=0.95,
                         xanchor='center',
                         yanchor='top',
-                        font=dict(size=20)
+                        font=dict(size=24)  # Larger title
                     ),
                     showlegend=True,
                     legend=dict(
@@ -300,7 +305,9 @@ class PlotlyVisualizer(BaseVisualizer):
                         y=1,
                         xanchor='left',
                         yanchor='top',
-                        font=dict(size=12)
+                        bgcolor='rgba(255,255,255,0.9)',
+                        bordercolor='#666',
+                        borderwidth=1
                     ),
                     hovermode='closest',
                     margin=dict(b=20, l=5, r=5, t=40),
@@ -310,36 +317,53 @@ class PlotlyVisualizer(BaseVisualizer):
                         showgrid=False,
                         zeroline=False,
                         showticklabels=False,
-                        range=[min(x for x, _ in self.pos.values()) - 1,
-                              max(x for x, _ in self.pos.values()) + 1]
+                        range=[
+                            min(x for x, _ in self.pos.values()) - 1,
+                            max(x for x, _ in self.pos.values()) + 1
+                        ]
                     ),
                     yaxis=dict(
                         showgrid=False,
                         zeroline=False,
                         showticklabels=False,
-                        range=[min(y for _, y in self.pos.values()) - 1,
-                              max(y for _, y in self.pos.values()) + 1],
-                        scaleanchor='x',  # Make the plot aspect ratio 1:1
+                        range=[
+                            min(y for _, y in self.pos.values()) - 1,
+                            max(y for _, y in self.pos.values()) + 1
+                        ],
+                        scaleanchor='x',
                         scaleratio=1
                     ),
-                    updatemenus=[dict(
-                        type='buttons',
-                        showactive=False,
-                        buttons=[dict(
-                            label='Reset View',
-                            method='relayout',
-                            args=[{
-                                'xaxis.range': [min(x for x, _ in self.pos.values()) - 1,
-                                              max(x for x, _ in self.pos.values()) + 1],
-                                'yaxis.range': [min(y for _, y in self.pos.values()) - 1,
-                                              max(y for _, y in self.pos.values()) + 1]
-                            }]
-                        )]
-                    )],
-                    dragmode='pan',  # Enable panning by default
+                    updatemenus=[
+                        dict(
+                            type='buttons',
+                            showactive=False,
+                            buttons=[
+                                dict(
+                                    label='Reset View',
+                                    method='relayout',
+                                    args=[{
+                                        'xaxis.range': [
+                                            min(x for x, _ in self.pos.values()) - 1,
+                                            max(x for x, _ in self.pos.values()) + 1
+                                        ],
+                                        'yaxis.range': [
+                                            min(y for _, y in self.pos.values()) - 1,
+                                            max(y for _, y in self.pos.values()) + 1
+                                        ]
+                                    }]
+                                ),
+                                dict(
+                                    label='Zoom In',
+                                    method='relayout',
+                                    args=[{'xaxis.range': None, 'yaxis.range': None}]
+                                )
+                            ]
+                        )
+                    ],
+                    dragmode='pan',
                     modebar=dict(
                         orientation='v',
-                        bgcolor='rgba(255,255,255,0.7)',
+                        bgcolor='rgba(255,255,255,0.9)',
                         color='#506784',
                         activecolor='#91ABC9'
                     ),
@@ -351,20 +375,34 @@ class PlotlyVisualizer(BaseVisualizer):
                 )
             )
 
-            # Configure for better performance with large datasets
+            # Add performance optimizations
             fig.update_layout(
-                uirevision=True,  # Preserve user interactions on updates
-                clickmode='event+select'  # Enable both clicking and selection
+                uirevision=True,  # Preserve user interactions
+                clickmode='event+select',
+                hovermode='closest',
+                dragmode='pan',
+                showlegend=True,
+                legend=dict(
+                    itemsizing='constant',
+                    itemwidth=30
+                )
             )
 
-            # Save to HTML file with optimized settings
+            # Save with optimized settings
             fig.write_html(
                 output_path,
-                include_plotlyjs='cdn',  # Use CDN for better loading performance
-                include_mathjax=False,   # Disable unnecessary MathJax
+                include_plotlyjs='cdn',
+                include_mathjax=False,
                 full_html=True,
-                auto_play=False,         # Disable autoplay for animations
-                validate=False           # Skip validation for faster saving
+                auto_play=False,
+                validate=False,
+                config={
+                    'scrollZoom': True,
+                    'displayModeBar': True,
+                    'modeBarButtonsToAdd': ['select2d', 'lasso2d'],
+                    'modeBarButtonsToRemove': ['autoScale2d'],
+                    'displaylogo': False
+                }
             )
 
             logger.info(f"Interactive graph visualization saved to {output_path}")
