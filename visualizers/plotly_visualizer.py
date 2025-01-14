@@ -1,1 +1,1 @@
-# This file is being removed as we are no longer using Plotly
+# This file has been removed as we no longer use Plotly for visualization
