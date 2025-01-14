@@ -1,4 +1,5 @@
 import boto3
+import os
 import time
 from typing import Dict, List, Optional
 from botocore.exceptions import ClientError
@@ -10,7 +11,11 @@ class AWSClient:
         """Initialize AWS client with specified profile and region."""
         self.profile = profile
         self.region = region
-        self.session = boto3.Session(profile_name=profile, region_name=region)
+        self.session = boto3.Session(
+            aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+            aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
+            region_name=region
+        )
         self.ec2_client = self.session.client('ec2')
 
     def get_security_groups(self) -> List[Dict]:
