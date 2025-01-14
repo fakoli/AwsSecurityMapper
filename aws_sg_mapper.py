@@ -4,10 +4,10 @@ import sys
 import os
 from typing import List
 from aws_client import AWSClient
-from cache_handler import CacheHandler
-from graph_generator import GraphGenerator
+from cache_handler import CacheHandler 
 from config import DEFAULT_REGION
-from utils import setup_logging, logger
+from graph_generator import GraphGenerator
+from utils import logger, setup_logging
 
 def parse_arguments():
     """Parse command line arguments."""
