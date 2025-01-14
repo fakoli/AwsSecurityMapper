@@ -23,5 +23,12 @@ class GraphGenerator:
             logger.warning("No security group data available for visualization")
             return
 
+        # Ensure output directory exists
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+        # Change extension to .html for Plotly visualization
+        if not output_path.endswith('.html'):
+            output_path = os.path.splitext(output_path)[0] + '.html'
+
         self.visualizer.generate_visualization(output_path, title)
         logger.info(f"Graph visualization saved to {output_path}")
