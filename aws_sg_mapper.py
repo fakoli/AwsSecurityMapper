@@ -1,13 +1,12 @@
-"""Main execution module for AWS Security Group Mapper."""
 import argparse
 import sys
 import os
 from typing import List
 from aws_client import AWSClient
-from cache_handler import CacheHandler 
-from config import DEFAULT_REGION
+from cache_handler import CacheHandler
 from graph_generator import GraphGenerator
-from utils import logger, setup_logging
+from config import DEFAULT_REGION
+from utils import setup_logging, logger
 
 def parse_arguments():
     """Parse command line arguments."""
@@ -16,8 +15,8 @@ def parse_arguments():
                        help='AWS profiles to analyze')
     parser.add_argument('--regions', nargs='+', default=[DEFAULT_REGION],
                        help=f'AWS regions to analyze (default: {DEFAULT_REGION})')
-    parser.add_argument('--output', default='out/sg_map.png',
-                       help='Output file path for the graph (default: out/sg_map.png)')
+    parser.add_argument('--output', default='sg_map.png',
+                       help='Output file path for the graph (default: sg_map.png)')
     parser.add_argument('--output-per-sg', action='store_true',
                        help='Generate separate maps for each security group')
     parser.add_argument('--clear-cache', action='store_true',
@@ -27,46 +26,6 @@ def parse_arguments():
     parser.add_argument('--security-group-ids', nargs='+',
                        help='Filter specific security group IDs (e.g., sg-123456)')
     return parser.parse_args()
-
-def generate_sg_maps(security_groups: List[dict], base_output: str, output_per_sg: bool = False) -> None:
-    """Generate security group relationship maps."""
-    logger.info("Generating security group relationship graph(s)...")
-    graph_generator = GraphGenerator()
-
-    # Create output directory if it doesn't exist
-    output_dir = os.path.dirname(base_output) or 'out'
-    os.makedirs(output_dir, exist_ok=True)
-
-    if output_per_sg:
-        # Generate individual maps for each security group
-        base_name = os.path.splitext(os.path.basename(base_output))[0]
-        ext = os.path.splitext(base_output)[1] or '.png'  # Default to PNG for matplotlib
-
-        for sg in security_groups:
-            sg_id = sg['GroupId']
-            sg_name = sg.get('GroupName', 'Unknown')
-            output_file = os.path.join(output_dir, f"{base_name}_{sg_id}{ext}")
-            title = f"Security Group: {sg_name} ({sg_id})"
-
-            try:
-                logger.debug(f"Building graph for {sg_id}")
-                graph_generator.build_graph(security_groups, highlight_sg=sg_id)
-                logger.debug(f"Generating visualization to {output_file}")
-                graph_generator.generate_visualization(output_file, title=title)
-                logger.info(f"Generated map for {sg_id} at {output_file}")
-            except Exception as e:
-                logger.error(f"Failed to generate map for {sg_id}: {str(e)}")
-    else:
-        # Generate a single map for all security groups
-        try:
-            logger.debug("Building graph structure")
-            graph_generator.build_graph(security_groups)
-            logger.debug(f"Generating visualization to {base_output}")
-            graph_generator.generate_visualization(base_output)
-            logger.info(f"Generated complete map at {base_output}")
-        except Exception as e:
-            logger.error(f"Failed to generate graph: {str(e)}")
-            raise
 
 def collect_security_groups(profiles: List[str], regions: List[str], 
                           cache_handler: CacheHandler,
@@ -112,6 +71,43 @@ def collect_security_groups(profiles: List[str], regions: List[str],
 
     return all_security_groups
 
+def generate_sg_maps(security_groups: List[dict], base_output: str, output_per_sg: bool = False) -> None:
+    """Generate security group relationship maps."""
+    logger.info("Generating security group relationship graph(s)...")
+    graph_generator = GraphGenerator()
+
+    if output_per_sg:
+        # Generate individual maps for each security group
+        output_dir = os.path.dirname(base_output) or '.'
+        base_name = os.path.splitext(os.path.basename(base_output))[0]
+        ext = os.path.splitext(base_output)[1] or '.png'
+
+        for sg in security_groups:
+            sg_id = sg['GroupId']
+            sg_name = sg.get('GroupName', 'Unknown')
+            output_file = f"{output_dir}/{base_name}_{sg_id}{ext}"
+            title = f"Security Group: {sg_name} ({sg_id})"
+
+            try:
+                logger.debug(f"Building graph for {sg_id}")
+                # Build graph focusing on this security group and its relationships
+                graph_generator.build_graph([sg], highlight_sg=sg_id)
+                logger.debug(f"Generating visualization to {output_file}")
+                graph_generator.generate_visualization(output_file, title=title)
+                logger.info(f"Generated map for {sg_id} at {output_file}")
+            except Exception as e:
+                logger.error(f"Failed to generate map for {sg_id}: {str(e)}")
+    else:
+        # Generate a single map for all security groups
+        try:
+            logger.debug("Building graph structure")
+            graph_generator.build_graph(security_groups)
+            logger.debug(f"Generating visualization to {base_output}")
+            graph_generator.generate_visualization(base_output)
+        except Exception as e:
+            logger.error(f"Failed to generate graph: {str(e)}")
+            raise
+
 def main():
     """Main execution function."""
     try:
@@ -147,10 +143,9 @@ def main():
         return 0
 
     except Exception as e:
-        if hasattr(args, 'debug') and args.debug:
-            logger.exception(f"An unexpected error occurred: {str(e)}")
-        else:
-            logger.error(f"An unexpected error occurred: {str(e)}")
+        logger.error(f"An unexpected error occurred: {str(e)}")
+        if args.debug:
+            logger.exception("Detailed error traceback:")
         return 1
 
 if __name__ == "__main__":

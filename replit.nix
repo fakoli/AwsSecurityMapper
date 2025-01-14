@@ -1,6 +1,5 @@
 {pkgs}: {
   deps = [
-    pkgs.graphviz
     pkgs.libyaml
     pkgs.tk
     pkgs.tcl

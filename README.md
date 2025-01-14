@@ -113,8 +113,6 @@ visualization:
     node_size: 30
     font_size: 12
     edge_width: 2
-    vpc_spacing: 2.5  # Controls spacing between VPC rectangles
-    vpc_padding: 0.4  # Padding between VPC boundaries
 
 # Common CIDR block names for better readability
 common_cidrs:
@@ -124,13 +122,6 @@ common_cidrs:
   "192.168.0.0/16": "Internal Network (Class C)"
   "127.0.0.0/8": "Localhost"
   "169.254.0.0/16": "Link Local"
-
-# Security group categories (for better organization)
-sg_categories:
-  web: ["http", "https", "www"]
-  database: ["mysql", "postgres", "mongodb", "redis"]
-  management: ["ssh", "rdp", "winrm"]
-  monitoring: ["prometheus", "grafana", "cloudwatch"]
 ```
 
 ## Usage Examples
@@ -167,25 +158,18 @@ visualization:
 python aws_sg_mapper.py --profiles default --output map.png
 ```
 
-#### Matplotlib Visualization
+#### Plotly (Interactive HTML)
 - Default configuration:
 ```yaml
 visualization:
-  default_engine: "matplotlib"
-  matplotlib:
-    node_size: 5000
-    font_size: 12
-    edge_width: 2.5
-    vpc_spacing: 8.0
-    vpc_padding: 3.0
+  default_engine: "plotly"
 ```
-- Generates high-quality PNG output
+- Creates interactive HTML files
 - Features:
-  - Clean, modern visual style
-  - VPC grouping with distinct colors
-  - Clear edge labels
-  - Comprehensive legend
-  - High DPI for crisp rendering
+  - Zoom and pan
+  - Hover information
+  - Node dragging
+  - Custom tooltips
 - Command:
 ```bash
 python aws_sg_mapper.py --profiles default --output map.html
