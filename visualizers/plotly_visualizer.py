@@ -21,14 +21,16 @@ class PlotlyVisualizer(BaseVisualizer):
         self.edge_width = self.settings.get('edge_width', 2)
         self.vpc_spacing = self.settings.get('vpc_spacing', 2.5)
 
-        # Enhanced color scheme for better contrast
+        # Enhanced color scheme to match reference
         self.colors = {
-            'regular_sg': '#2980B9',     # Bright blue
-            'highlighted_sg': '#E74C3C',  # Bright red
-            'cidr': '#27AE60',           # Bright green
-            'same_vpc_edge': '#34495E',   # Dark gray
-            'cross_vpc_edge': '#E74C3C',  # Red
-            'edge_hover': '#2C3E50'       # Dark blue-gray
+            'regular_sg': '#2980B9',     # Blue for regular security groups
+            'highlighted_sg': '#E74C3C',  # Red for highlighted security group
+            'cidr': '#27AE60',           # Green for CIDR blocks
+            'same_vpc_edge': '#34495E',   # Dark gray for same VPC edges
+            'cross_vpc_edge': '#E74C3C',  # Red for cross-VPC edges
+            'edge_hover': '#2C3E50',      # Dark blue-gray for edge hovers
+            'vpc_boundary': '#FFFFFF',    # White for VPC boundaries
+            'vpc_background': '#F8F9FA'   # Light gray for VPC background
         }
 
     def clear(self) -> None:
@@ -272,8 +274,6 @@ class PlotlyVisualizer(BaseVisualizer):
             logger.warning("No nodes in graph to visualize")
             return
 
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
-
         try:
             # Generate optimized layout with better spacing
             self.pos = nx.spring_layout(
@@ -283,11 +283,64 @@ class PlotlyVisualizer(BaseVisualizer):
                 seed=42         # Consistent layout
             )
 
+            # Group nodes by VPC
+            vpc_groups = {}
+            for node, data in self.graph.nodes(data=True):
+                if data.get('type') == 'security_group':
+                    vpc_id = data.get('vpc_id', 'Unknown VPC')
+                    if vpc_id not in vpc_groups:
+                        vpc_groups[vpc_id] = []
+                    vpc_groups[vpc_id].append(node)
+
+            # Create traces for VPC boundaries
+            vpc_shapes = []
+            vpc_annotations = []
+            for vpc_id, nodes in vpc_groups.items():
+                if not nodes:
+                    continue
+
+                # Calculate VPC boundary
+                vpc_pos = [self.pos[node] for node in nodes]
+                min_x = min(x for x, y in vpc_pos) - 0.4
+                max_x = max(x for x, y in vpc_pos) + 0.4
+                min_y = min(y for x, y in vpc_pos) - 0.4
+                max_y = max(y for x, y in vpc_pos) + 0.4
+
+                # Add VPC boundary shape
+                vpc_shapes.append(dict(
+                    type="rect",
+                    x0=min_x, y0=min_y,
+                    x1=max_x, y1=max_y,
+                    line=dict(
+                        color='#E2E8F0',
+                        width=2,
+                    ),
+                    fillcolor=self.colors['vpc_background'],
+                    opacity=0.3,
+                    layer='below'
+                ))
+
+                # Add VPC label at the top
+                vpc_annotations.append(dict(
+                    x=(min_x + max_x) / 2,
+                    y=max_y + 0.2,
+                    text=f'VPC: {vpc_id}',
+                    showarrow=False,
+                    font=dict(
+                        size=14,
+                        color='#1A202C'
+                    ),
+                    bgcolor='#FFFFFF',
+                    bordercolor='#E2E8F0',
+                    borderwidth=1,
+                    borderpad=4
+                ))
+
             # Create traces
             edge_traces = self._create_edge_traces()
             node_traces = self._create_node_traces()
 
-            # Create figure with enhanced layout and interactivity
+            # Create figure with enhanced layout
             fig = go.Figure(
                 data=[*edge_traces, *node_traces],
                 layout=go.Layout(
@@ -297,7 +350,7 @@ class PlotlyVisualizer(BaseVisualizer):
                         y=0.95,
                         xanchor='center',
                         yanchor='top',
-                        font=dict(size=24)  # Larger title
+                        font=dict(size=24)
                     ),
                     showlegend=True,
                     legend=dict(
@@ -306,85 +359,17 @@ class PlotlyVisualizer(BaseVisualizer):
                         xanchor='left',
                         yanchor='top',
                         bgcolor='rgba(255,255,255,0.9)',
-                        bordercolor='#666',
+                        bordercolor='#E2E8F0',
                         borderwidth=1
                     ),
+                    shapes=vpc_shapes,
+                    annotations=vpc_annotations,
                     hovermode='closest',
                     margin=dict(b=20, l=5, r=5, t=40),
                     plot_bgcolor='white',
                     paper_bgcolor='white',
-                    xaxis=dict(
-                        showgrid=False,
-                        zeroline=False,
-                        showticklabels=False,
-                        range=[
-                            min(x for x, _ in self.pos.values()) - 1,
-                            max(x for x, _ in self.pos.values()) + 1
-                        ]
-                    ),
-                    yaxis=dict(
-                        showgrid=False,
-                        zeroline=False,
-                        showticklabels=False,
-                        range=[
-                            min(y for _, y in self.pos.values()) - 1,
-                            max(y for _, y in self.pos.values()) + 1
-                        ],
-                        scaleanchor='x',
-                        scaleratio=1
-                    ),
-                    updatemenus=[
-                        dict(
-                            type='buttons',
-                            showactive=False,
-                            buttons=[
-                                dict(
-                                    label='Reset View',
-                                    method='relayout',
-                                    args=[{
-                                        'xaxis.range': [
-                                            min(x for x, _ in self.pos.values()) - 1,
-                                            max(x for x, _ in self.pos.values()) + 1
-                                        ],
-                                        'yaxis.range': [
-                                            min(y for _, y in self.pos.values()) - 1,
-                                            max(y for _, y in self.pos.values()) + 1
-                                        ]
-                                    }]
-                                ),
-                                dict(
-                                    label='Zoom In',
-                                    method='relayout',
-                                    args=[{'xaxis.range': None, 'yaxis.range': None}]
-                                )
-                            ]
-                        )
-                    ],
-                    dragmode='pan',
-                    modebar=dict(
-                        orientation='v',
-                        bgcolor='rgba(255,255,255,0.9)',
-                        color='#506784',
-                        activecolor='#91ABC9'
-                    ),
-                    hoverlabel=dict(
-                        bgcolor='white',
-                        font=dict(size=12),
-                        bordercolor='#506784'
-                    )
-                )
-            )
-
-            # Add performance optimizations
-            fig.update_layout(
-                uirevision=True,  # Preserve user interactions
-                clickmode='event+select',
-                hovermode='closest',
-                dragmode='pan',
-                showlegend=True,
-                legend=dict(
-                    itemsizing='constant',
-                    itemwidth=30
+                    xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                    yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)
                 )
             )
 
@@ -392,15 +377,10 @@ class PlotlyVisualizer(BaseVisualizer):
             fig.write_html(
                 output_path,
                 include_plotlyjs='cdn',
-                include_mathjax=False,
                 full_html=True,
-                auto_play=False,
-                validate=False,
                 config={
                     'scrollZoom': True,
                     'displayModeBar': True,
-                    'modeBarButtonsToAdd': ['select2d', 'lasso2d'],
-                    'modeBarButtonsToRemove': ['autoScale2d'],
                     'displaylogo': False
                 }
             )
