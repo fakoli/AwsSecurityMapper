@@ -16,8 +16,8 @@ def parse_arguments():
                        help='AWS profiles to analyze')
     parser.add_argument('--regions', nargs='+', default=[DEFAULT_REGION],
                        help=f'AWS regions to analyze (default: {DEFAULT_REGION})')
-    parser.add_argument('--output', default='out/sg_map.html',
-                       help='Output file path for the graph (default: out/sg_map.html)')
+    parser.add_argument('--output', default='out/sg_map.png',
+                       help='Output file path for the graph (default: out/sg_map.png)')
     parser.add_argument('--output-per-sg', action='store_true',
                        help='Generate separate maps for each security group')
     parser.add_argument('--clear-cache', action='store_true',
@@ -40,7 +40,7 @@ def generate_sg_maps(security_groups: List[dict], base_output: str, output_per_s
     if output_per_sg:
         # Generate individual maps for each security group
         base_name = os.path.splitext(os.path.basename(base_output))[0]
-        ext = os.path.splitext(base_output)[1] or '.html'  # Default to HTML for Plotly
+        ext = os.path.splitext(base_output)[1] or '.png'  # Default to PNG for matplotlib
 
         for sg in security_groups:
             sg_id = sg['GroupId']
