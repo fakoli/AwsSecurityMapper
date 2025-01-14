@@ -1,4 +1,5 @@
 """AWS Client module for interacting with EC2 security groups."""
+
 import os
 import time
 from typing import Dict, List, Optional
@@ -39,7 +40,9 @@ class AWSClient:
         else:
             logger.info("Using mock data for testing")
 
-    def get_security_groups(self, security_group_ids: Optional[List[str]] = None) -> List[Dict]:
+    def get_security_groups(
+        self, security_group_ids: Optional[List[str]] = None
+    ) -> List[Dict]:
         """Retrieve security groups, optionally filtered by IDs."""
         if self.use_mock:
             mock_groups = get_mock_security_groups()

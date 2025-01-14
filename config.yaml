@@ -1,6 +1,6 @@
 # Cache configuration
 cache:
-  directory: "~/.aws-sg-mapper/cache"
+  directory: "build/cache"
   duration: 3600  # Cache validity in seconds
 
 # AWS configuration

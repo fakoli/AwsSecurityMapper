@@ -1,4 +1,5 @@
 """Matplotlib implementation for graph visualization."""
+
 from typing import Dict, List, Optional
 
 import networkx as nx

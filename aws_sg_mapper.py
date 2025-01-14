@@ -1,8 +1,9 @@
 """AWS Security Group Mapper main module."""
+
 import argparse
 import os
 import sys
-from typing import List
+from typing import List, Optional
 
 from aws_client import AWSClient
 from cache_handler import CacheHandler
@@ -13,7 +14,9 @@ from utils import setup_logging, logger
 
 def parse_arguments():
     """Parse command line arguments."""
-    parser = argparse.ArgumentParser(description="AWS Security Group Relationship Mapper")
+    parser = argparse.ArgumentParser(
+        description="AWS Security Group Relationship Mapper"
+    )
     parser.add_argument(
         "--profiles", nargs="+", required=True, help="AWS profiles to analyze"
     )
@@ -49,9 +52,19 @@ def collect_security_groups(
     profiles: List[str],
     regions: List[str],
     cache_handler: CacheHandler,
-    security_group_ids: List[str] = None,
+    security_group_ids: Optional[List[str]] = None,
 ) -> List[dict]:
-    """Collect security group data from specified profiles and regions."""
+    """Collect security group data from specified profiles and regions.
+
+    Args:
+        profiles: List of AWS profiles to query
+        regions: List of AWS regions to query
+        cache_handler: Cache handler instance
+        security_group_ids: Optional list of security group IDs to filter
+
+    Returns:
+        List of security group data dictionaries
+    """
     all_security_groups = []
 
     for profile in profiles:

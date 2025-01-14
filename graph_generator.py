@@ -1,4 +1,5 @@
 """Graph generator module for AWS Security Group visualization."""
+
 import os
 from typing import Dict, List, Optional
 
@@ -45,12 +46,13 @@ class GraphGenerator:
             output_path: Path where the visualization should be saved
             title: Optional title for the visualization
         """
-        # Ensure build directory exists
-        os.makedirs("build", exist_ok=True)
+        # Ensure build/maps directory exists
+        maps_dir = os.path.join("build", "maps")
+        os.makedirs(maps_dir, exist_ok=True)
 
-        # Prepend build directory if not already included
-        if not output_path.startswith("build/"):
-            output_path = os.path.join("build", output_path)
+        # Prepend build/maps directory if not already included
+        if not output_path.startswith(os.path.join("build", "maps")):
+            output_path = os.path.join(maps_dir, os.path.basename(output_path))
 
         # Adjust file extension based on visualizer
         if isinstance(self.visualizer, PlotlyVisualizer):
