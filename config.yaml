@@ -1,14 +1,3 @@
-# Cache configuration
-cache:
-  directory: "~/.aws-sg-mapper/cache"
-  duration: 3600  # Cache validity in seconds
-
-# AWS configuration
-aws:
-  default_region: "us-east-1"
-  max_retries: 3
-  retry_delay: 5  # seconds
-
 # Graph visualization settings
 visualization:
   default_engine: "plotly"
@@ -24,12 +13,3 @@ common_cidrs:
   "10.0.0.0/8": "Internal Network (Class A)"
   "172.16.0.0/12": "Internal Network (Class B)"
   "192.168.0.0/16": "Internal Network (Class C)"
-  "127.0.0.0/8": "Localhost"
-  "169.254.0.0/16": "Link Local"
-
-# Security group categories (for better organization)
-sg_categories:
-  web: ["http", "https", "www"]
-  database: ["mysql", "postgres", "mongodb", "redis"]
-  management: ["ssh", "rdp", "winrm"]
-  monitoring: ["prometheus", "grafana", "cloudwatch"]
