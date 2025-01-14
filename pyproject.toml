@@ -9,5 +9,6 @@ dependencies = [
     "matplotlib>=3.10.0",
     "networkx>=3.4.2",
     "plotly>=5.24.1",
+    "pylint>=3.3.3",
     "pyyaml>=6.0.2",
 ]
