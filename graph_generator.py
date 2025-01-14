@@ -1,5 +1,5 @@
 from typing import Dict, List, Optional
-from visualizers import BaseVisualizer, MatplotlibVisualizer
+from visualizers import BaseVisualizer, PlotlyVisualizer
 from config import config
 from utils import logger
 import os
