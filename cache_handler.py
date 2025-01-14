@@ -1,4 +1,5 @@
 """Cache handler module for AWS Security Group Mapper."""
+
 import json
 import time
 from pathlib import Path
