@@ -6,6 +6,7 @@ from pathlib import Path
 from config import CACHE_DIR, CACHE_DURATION
 from utils import logger
 
+
 class CacheHandler:
     def __init__(self) -> None:
         """Initialize cache handler and create cache directory if needed."""
@@ -28,14 +29,14 @@ class CacheHandler:
             return None
 
         try:
-            with open(cache_path, 'r') as f:
+            with open(cache_path, "r") as f:
                 cache_data = json.load(f)
 
-            if time.time() - cache_data['timestamp'] > CACHE_DURATION:
+            if time.time() - cache_data["timestamp"] > CACHE_DURATION:
                 logger.debug("Cache expired")
                 return None
 
-            return cache_data['data']
+            return cache_data["data"]
         except Exception as e:
             logger.error(f"Error reading cache: {str(e)}")
             return None
@@ -45,17 +46,16 @@ class CacheHandler:
         cache_path = self._get_cache_path(profile, region)
 
         try:
-            cache_data = {
-                'timestamp': time.time(),
-                'data': data
-            }
-            with open(cache_path, 'w') as f:
+            cache_data = {"timestamp": time.time(), "data": data}
+            with open(cache_path, "w") as f:
                 json.dump(cache_data, f)
             logger.debug(f"Data cached successfully for {profile} in {region}")
         except Exception as e:
             logger.error(f"Error saving to cache: {str(e)}")
 
-    def clear_cache(self, profile: Optional[str] = None, region: Optional[str] = None) -> None:
+    def clear_cache(
+        self, profile: Optional[str] = None, region: Optional[str] = None
+    ) -> None:
         """Clear cache files for specified profile and region, or all if not specified."""
         if profile and region:
             cache_path = self._get_cache_path(profile, region)
