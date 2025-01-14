@@ -12,16 +12,13 @@ class BaseVisualizer(ABC):
         self, security_groups: List[Dict], highlight_sg: Optional[str] = None
     ) -> None:
         """Build the graph structure from security groups."""
-        pass
 
     @abstractmethod
     def generate_visualization(
         self, output_path: str, title: Optional[str] = None
     ) -> None:
         """Generate and save the visualization."""
-        pass
 
     @abstractmethod
     def clear(self) -> None:
         """Clear the current graph data."""
-        pass

@@ -28,7 +28,7 @@ def get_friendly_cidr_name(cidr: str) -> str:
         network = ipaddress.ip_network(cidr)
         if network.is_private:
             return f"Private Network ({cidr})"
-        elif network.is_global:
+        if network.is_global:
             return f"Public Network ({cidr})"
         return cidr
     except ValueError:
@@ -52,7 +52,7 @@ def parse_cidr(cidr: str) -> Optional[Dict]:
             "is_private": network.is_private,
         }
     except ValueError as e:
-        logger.error(f"Invalid CIDR block: {cidr} - {str(e)}")
+        logger.error("Invalid CIDR block: %s - %s", cidr, str(e))
         return None
 
 

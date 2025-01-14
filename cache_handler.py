@@ -1,13 +1,16 @@
+"""Cache handler module for AWS Security Group Mapper."""
 import json
 import time
-import os
-from typing import Dict, Optional, List
 from pathlib import Path
+from typing import Dict, Optional, List
+
 from config import CACHE_DIR, CACHE_DURATION
 from utils import logger
 
 
 class CacheHandler:
+    """Handle caching of security group data."""
+
     def __init__(self) -> None:
         """Initialize cache handler and create cache directory if needed."""
         self.cache_dir = CACHE_DIR
@@ -29,7 +32,7 @@ class CacheHandler:
             return None
 
         try:
-            with open(cache_path, "r") as f:
+            with open(cache_path, "r", encoding="utf-8") as f:
                 cache_data = json.load(f)
 
             if time.time() - cache_data["timestamp"] > CACHE_DURATION:
@@ -38,7 +41,7 @@ class CacheHandler:
 
             return cache_data["data"]
         except Exception as e:
-            logger.error(f"Error reading cache: {str(e)}")
+            logger.error("Error reading cache: %s", str(e))
             return None
 
     def save_to_cache(self, profile: str, region: str, data: List[Dict]) -> None:
@@ -47,11 +50,11 @@ class CacheHandler:
 
         try:
             cache_data = {"timestamp": time.time(), "data": data}
-            with open(cache_path, "w") as f:
+            with open(cache_path, "w", encoding="utf-8") as f:
                 json.dump(cache_data, f)
-            logger.debug(f"Data cached successfully for {profile} in {region}")
+            logger.debug("Data cached successfully for %s in %s", profile, region)
         except Exception as e:
-            logger.error(f"Error saving to cache: {str(e)}")
+            logger.error("Error saving to cache: %s", str(e))
 
     def clear_cache(
         self, profile: Optional[str] = None, region: Optional[str] = None
@@ -61,7 +64,7 @@ class CacheHandler:
             cache_path = self._get_cache_path(profile, region)
             if cache_path.exists():
                 cache_path.unlink()
-                logger.info(f"Cleared cache for {profile} in {region}")
+                logger.info("Cleared cache for %s in %s", profile, region)
         else:
             for cache_file in self.cache_dir.glob("*_sg_cache.json"):
                 cache_file.unlink()

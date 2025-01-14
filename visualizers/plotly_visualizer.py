@@ -1,6 +1,6 @@
 """Plotly implementation for graph visualization."""
 
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional
 import networkx as nx
 import plotly.graph_objects as go
 from config import config
@@ -78,7 +78,7 @@ class PlotlyVisualizer(BaseVisualizer):
                     )
 
                 edge_label = f"{protocol}:{format_ports(from_port, to_port)}"
-                is_cross_vpc = vpc_id != source_vpc and source_vpc != "Unknown VPC"
+                is_cross_vpc = source_vpc not in (vpc_id, "Unknown VPC")
                 self.graph.add_edge(
                     source_id,
                     target_group_id,
@@ -146,7 +146,7 @@ class PlotlyVisualizer(BaseVisualizer):
                     y0=min(y_coords) - 0.2,
                     x1=max(x_coords) + 0.2,
                     y1=max(y_coords) + 0.2,
-                    line=dict(color="#6c757d", width=2),
+                    line={"color": "#6c757d", "width": 2},
                     fillcolor="rgba(248, 249, 250, 0.2)",
                     layer="below",
                 )
@@ -157,51 +157,31 @@ class PlotlyVisualizer(BaseVisualizer):
                     y=max(y_coords) + 0.3,
                     text=f"VPC: {vpc_id}",
                     showarrow=False,
-                    font=dict(size=14, color="#000000"),
+                    font={"size": 14, "color": "#000000"},
                     bgcolor="rgba(255, 255, 255, 0.8)",
                 )
 
             # Add edges
-            edge_x = []
-            edge_y = []
-            edge_text = []
-            cross_vpc_edges = []
-            normal_edges = []
-
             for edge in self.graph.edges(data=True):
                 x0, y0 = pos[edge[0]]
                 x1, y1 = pos[edge[1]]
                 is_cross_vpc = edge[2].get("is_cross_vpc", False)
 
-                if is_cross_vpc:
-                    cross_vpc_edges.append((x0, y0, x1, y1, edge[2].get("label", "")))
-                else:
-                    normal_edges.append((x0, y0, x1, y1, edge[2].get("label", "")))
-
-            # Add normal edges
-            for x0, y0, x1, y1, label in normal_edges:
-                fig.add_trace(
-                    go.Scatter(
-                        x=[x0, x1, None],
-                        y=[y0, y1, None],
-                        mode="lines",
-                        line=dict(color="#404040", width=self.edge_width),
-                        hoverinfo="text",
-                        text=label,
-                        showlegend=False,
-                    )
+                # Add edge trace
+                edge_style = (
+                    {"color": "#FF6B6B", "width": self.edge_width, "dash": "dash"}
+                    if is_cross_vpc
+                    else {"color": "#404040", "width": self.edge_width}
                 )
 
-            # Add cross-VPC edges
-            for x0, y0, x1, y1, label in cross_vpc_edges:
                 fig.add_trace(
                     go.Scatter(
                         x=[x0, x1, None],
                         y=[y0, y1, None],
                         mode="lines",
-                        line=dict(color="#FF6B6B", width=self.edge_width, dash="dash"),
+                        line=edge_style,
                         hoverinfo="text",
-                        text=label,
+                        text=edge[2].get("label", ""),
                         showlegend=False,
                     )
                 )
@@ -226,17 +206,13 @@ class PlotlyVisualizer(BaseVisualizer):
                             x=[x],
                             y=[y],
                             mode="markers+text",
-                            marker=dict(size=size, color=color),
+                            marker={"size": size, "color": color},
                             text=name,
                             textposition="bottom center",
                             hoverinfo="text",
                             hovertext=hover_text,
                             showlegend=True,
-                            name=(
-                                "Target SG"
-                                if attr.get("is_highlighted")
-                                else "Security Groups"
-                            ),
+                            name="Target SG" if attr.get("is_highlighted") else "Security Groups",
                         )
                     )
 
@@ -248,9 +224,7 @@ class PlotlyVisualizer(BaseVisualizer):
                         x=[x],
                         y=[y],
                         mode="markers+text",
-                        marker=dict(
-                            size=self.node_size, color="#70AD47", symbol="square"
-                        ),
+                        marker={"size": self.node_size, "color": "#70AD47", "symbol": "square"},
                         text=self.graph.nodes[node].get("name", node),
                         textposition="bottom center",
                         hoverinfo="text",
@@ -261,24 +235,24 @@ class PlotlyVisualizer(BaseVisualizer):
 
             # Update layout
             fig.update_layout(
-                title=dict(
-                    text=title or "AWS Security Group Relationships",
-                    x=0.5,
-                    y=0.95,
-                    font=dict(size=16),
-                ),
+                title={
+                    "text": title or "AWS Security Group Relationships",
+                    "x": 0.5,
+                    "y": 0.95,
+                    "font": {"size": 16},
+                },
                 showlegend=True,
                 hovermode="closest",
-                margin=dict(b=20, l=5, r=5, t=40),
-                xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-                yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                margin={"b": 20, "l": 5, "r": 5, "t": 40},
+                xaxis={"showgrid": False, "zeroline": False, "showticklabels": False},
+                yaxis={"showgrid": False, "zeroline": False, "showticklabels": False},
                 plot_bgcolor="white",
             )
 
             # Save the figure
             fig.write_html(output_path)
-            logger.info(f"Graph visualization saved to {output_path}")
+            logger.info("Graph visualization saved to %s", output_path)
 
         except Exception as e:
-            logger.error(f"Error generating visualization: {str(e)}")
+            logger.error("Error generating visualization: %s", str(e))
             raise

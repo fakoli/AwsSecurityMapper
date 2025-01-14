@@ -1,11 +1,16 @@
+"""Configuration module for AWS Security Group Mapper."""
 import os
-import yaml
 from pathlib import Path
 from typing import Dict, Any
 
+import yaml
+
 
 class Config:
+    """Configuration handler for AWS Security Group Mapper."""
+
     def __init__(self):
+        """Initialize configuration handler."""
         self.config_file = Path("config.yaml")
         self.load_config()
 
@@ -14,7 +19,7 @@ class Config:
         if not self.config_file.exists():
             raise FileNotFoundError(f"Configuration file not found: {self.config_file}")
 
-        with open(self.config_file, "r") as f:
+        with open(self.config_file, "r", encoding="utf-8") as f:
             self._config = yaml.safe_load(f)
 
         # Expand user path for cache directory
