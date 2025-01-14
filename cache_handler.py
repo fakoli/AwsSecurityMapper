@@ -1,7 +1,7 @@
 import json
 import time
 import os
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 from pathlib import Path
 from config import CACHE_DIR, CACHE_DURATION
 from utils import logger
@@ -20,10 +20,10 @@ class CacheHandler:
         """Generate cache file path for given profile and region."""
         return self.cache_dir / f"{profile}_{region}_sg_cache.json"
 
-    def get_cached_data(self, profile: str, region: str) -> Optional[Dict]:
+    def get_cached_data(self, profile: str, region: str) -> Optional[List[Dict]]:
         """Retrieve cached security group data if valid."""
         cache_path = self._get_cache_path(profile, region)
-        
+
         if not cache_path.exists():
             return None
 
@@ -40,10 +40,10 @@ class CacheHandler:
             logger.error(f"Error reading cache: {str(e)}")
             return None
 
-    def save_to_cache(self, profile: str, region: str, data: Dict) -> None:
+    def save_to_cache(self, profile: str, region: str, data: List[Dict]) -> None:
         """Save security group data to cache."""
         cache_path = self._get_cache_path(profile, region)
-        
+
         try:
             cache_data = {
                 'timestamp': time.time(),

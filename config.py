@@ -3,6 +3,7 @@ from pathlib import Path
 
 # Cache configuration
 CACHE_DIR = Path(os.path.expanduser("~/.aws-sg-mapper/cache"))
+CACHE_DIR.mkdir(parents=True, exist_ok=True)  # Ensure cache directory exists
 CACHE_DURATION = 3600  # Cache validity in seconds
 
 # AWS configuration

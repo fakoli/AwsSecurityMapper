@@ -1,6 +1,6 @@
 import logging
 import ipaddress
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Optional
 
 # Configure logging
 logging.basicConfig(
@@ -14,7 +14,7 @@ def setup_logging(debug: bool = False) -> None:
     if debug:
         logging.getLogger().setLevel(logging.DEBUG)
 
-def parse_cidr(cidr: str) -> Dict:
+def parse_cidr(cidr: str) -> Optional[Dict]:
     """Parse CIDR block and return network information."""
     try:
         network = ipaddress.ip_network(cidr)
