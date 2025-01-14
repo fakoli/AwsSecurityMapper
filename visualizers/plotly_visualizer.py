@@ -262,6 +262,12 @@ class PlotlyVisualizer(BaseVisualizer):
         if not self.graph.nodes():
             logger.warning("No nodes in graph to visualize")
             return
+            
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        
+        if not os.access(os.path.dirname(output_path), os.W_OK):
+            logger.error(f"Output directory {os.path.dirname(output_path)} is not writable")
+            raise PermissionError(f"Cannot write to {output_path}")
 
         try:
             # Generate optimized layout
