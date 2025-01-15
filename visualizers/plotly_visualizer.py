@@ -31,10 +31,8 @@ class PlotlyVisualizer(BaseVisualizer):
             # Create a spring layout
             pos = nx.spring_layout(self.graph, k=2)
 
-            # Group nodes by VPC for future VPC boundary visualization
-            # These variables will be used when implementing VPC boundaries
-            # similar to matplotlib_visualizer's VPC grouping functionality
-            vpc_groups, cidr_nodes = self.group_nodes_by_vpc()  # noqa: F841
+            # TODO: Implement VPC boundary visualization in future iteration
+            # vpc_groups, cidr_nodes = self.group_nodes_by_vpc()
 
             # Create figure
             fig = go.Figure()
