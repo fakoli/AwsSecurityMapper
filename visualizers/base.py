@@ -41,7 +41,7 @@ class BaseVisualizer(ABC):
                 description=description,
                 vpc_id=vpc_id,
                 type="security_group",
-                is_highlighted=group_id == highlight_sg,
+                is_highlighted=group_id == self.highlight_sg,
             )
 
             # Process inbound rules

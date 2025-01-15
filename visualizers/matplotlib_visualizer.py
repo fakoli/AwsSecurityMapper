@@ -18,19 +18,19 @@ class MatplotlibVisualizer(BaseVisualizer):
 
     def __init__(self):
         """Initialize the visualizer."""
-        self.graph = nx.DiGraph()
-        self.highlight_sg = None
+        super().__init__()  # Add call to parent class initialization
         self.settings = config.get("visualization", "matplotlib", default={})
         self.node_size = self.settings.get("node_size", 2000)
         self.font_size = self.settings.get("font_size", 8)
         self.edge_width = self.settings.get("edge_width", 1)
-        self.pos = None  # Store the layout positions
+        # Initialize pos here to prevent None subscript error
+        self.pos = {}
 
     def clear(self) -> None:
         """Clear the current graph data."""
         self.graph.clear()
         self.highlight_sg = None
-        self.pos = None
+        self.pos = {}
 
     def build_graph(
         self, security_groups: List[Dict], highlight_sg: Optional[str] = None
@@ -53,7 +53,7 @@ class MatplotlibVisualizer(BaseVisualizer):
                 description=description,
                 vpc_id=vpc_id,
                 type="security_group",
-                is_highlighted=group_id == highlight_sg,
+                is_highlighted=group_id == self.highlight_sg,
             )
 
             # Process inbound rules
@@ -110,43 +110,12 @@ class MatplotlibVisualizer(BaseVisualizer):
                     is_cross_vpc=False,
                 )
 
-    def generate_visualization(
-        self, output_path: str, title: Optional[str] = None
-    ) -> None:
-        """Generate and save the graph visualization using matplotlib."""
-        if not self.graph.nodes():
-            logger.warning("No nodes in graph to visualize")
-            return
-
-        try:
-            plt.figure(figsize=(20, 20))
-
-            # Create spring layout
-            self.pos = nx.spring_layout(self.graph, k=3, iterations=50)
-
-            self._draw_vpc_groups()
-            self._draw_nodes()
-            self._draw_edges()
-            self._draw_labels()
-            self._add_legend()
-
-            # Set title
-            if title:
-                plt.title(title, fontsize=16, pad=20)
-            else:
-                plt.title("AWS Security Group Relationships", fontsize=16, pad=20)
-
-            plt.axis("off")
-            plt.savefig(output_path, dpi=300, bbox_inches="tight")
-            plt.close()
-
-            logger.info("Graph visualization saved to %s", output_path)
-        except Exception as e:
-            logger.error("Error generating visualization: %s", str(e))
-            raise
-
     def _draw_vpc_groups(self) -> None:
         """Draw VPC boundaries and labels."""
+        # Create spring layout if not already set
+        if not self.pos:
+            self.pos = nx.spring_layout(self.graph, k=3, iterations=50)
+
         vpc_groups = {}
         for node, data in self.graph.nodes(data=True):
             if data.get("type") == "security_group":
@@ -213,6 +182,9 @@ class MatplotlibVisualizer(BaseVisualizer):
 
     def _draw_nodes(self) -> None:
         """Draw all nodes with proper styling."""
+        if not self.pos:
+            self.pos = nx.spring_layout(self.graph, k=3, iterations=50)
+
         sg_nodes = [
             n
             for n, attr in self.graph.nodes(data=True)
@@ -267,6 +239,9 @@ class MatplotlibVisualizer(BaseVisualizer):
         if not self.graph.edges():
             return
 
+        if not self.pos:
+            self.pos = nx.spring_layout(self.graph, k=3, iterations=50)
+
         cross_vpc_edges = [
             (u, v)
             for u, v, d in self.graph.edges(data=True)
@@ -303,6 +278,9 @@ class MatplotlibVisualizer(BaseVisualizer):
 
     def _draw_labels(self) -> None:
         """Draw node and edge labels."""
+        if not self.pos:
+            self.pos = nx.spring_layout(self.graph, k=3, iterations=50)
+
         # Node labels
         labels = {}
         for node in self.graph.nodes():
@@ -404,3 +382,39 @@ class MatplotlibVisualizer(BaseVisualizer):
             fontsize=12,
             bbox_to_anchor=(1, 1),
         )
+
+    def generate_visualization(
+        self, output_path: str, title: Optional[str] = None
+    ) -> None:
+        """Generate and save the graph visualization using matplotlib."""
+        if not self.graph.nodes():
+            logger.warning("No nodes in graph to visualize")
+            return
+
+        try:
+            plt.figure(figsize=(20, 20))
+
+            # Create spring layout if not already set
+            if not self.pos:
+                self.pos = nx.spring_layout(self.graph, k=3, iterations=50)
+
+            self._draw_vpc_groups()
+            self._draw_nodes()
+            self._draw_edges()
+            self._draw_labels()
+            self._add_legend()
+
+            # Set title
+            if title:
+                plt.title(title, fontsize=16, pad=20)
+            else:
+                plt.title("AWS Security Group Relationships", fontsize=16, pad=20)
+
+            plt.axis("off")
+            plt.savefig(output_path, dpi=300, bbox_inches="tight")
+            plt.close()
+
+            logger.info("Graph visualization saved to %s", output_path)
+        except Exception as e:
+            logger.error("Error generating visualization: %s", str(e))
+            raise
