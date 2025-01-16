@@ -1,13 +1,13 @@
 """Matplotlib implementation for graph visualization."""
 
 from typing import Dict, List, Optional
-
 import networkx as nx
 import matplotlib.pyplot as plt
 
 from config import config
 from utils import format_ports, get_friendly_cidr_name, logger
 from .base import BaseVisualizer
+
 
 # Force matplotlib to use non-interactive backend
 plt.switch_backend("Agg")
@@ -18,47 +18,24 @@ class MatplotlibVisualizer(BaseVisualizer):
 
     def __init__(self):
         """Initialize the visualizer."""
-        super().__init__()  # Add call to parent class initialization
+        super().__init__()
         self.settings = config.get("visualization", "matplotlib", default={})
         self.node_size = self.settings.get("node_size", 2000)
         self.font_size = self.settings.get("font_size", 8)
         self.edge_width = self.settings.get("edge_width", 1)
-        # Initialize pos here to prevent None subscript error
         self.pos = {}
 
     def clear(self) -> None:
         """Clear the current graph data."""
-        self.graph.clear()
-        self.highlight_sg = None
+        super().clear()
         self.pos = {}
 
     def build_graph(
         self, security_groups: List[Dict], highlight_sg: Optional[str] = None
     ) -> None:
         """Build NetworkX graph from security group data."""
-        self.clear()
-        self.highlight_sg = highlight_sg
+        super().build_graph(security_groups, highlight_sg)
 
-        # Add nodes for each security group
-        for sg in security_groups:
-            group_id = sg["GroupId"]
-            group_name = sg.get("GroupName", "Unknown")
-            description = sg.get("Description", "")
-            vpc_id = sg.get("VpcId", "Unknown VPC")
-
-            # Add the security group node
-            self.graph.add_node(
-                group_id,
-                name=group_name,
-                description=description,
-                vpc_id=vpc_id,
-                type="security_group",
-                is_highlighted=group_id == self.highlight_sg,
-            )
-
-            # Process inbound rules
-            for permission in sg.get("IpPermissions", []):
-                self._process_permission(permission, group_id, vpc_id)
 
     def _process_permission(
         self, permission: Dict, target_group_id: str, vpc_id: str
@@ -116,13 +93,7 @@ class MatplotlibVisualizer(BaseVisualizer):
         if not self.pos:
             self.pos = nx.spring_layout(self.graph, k=3, iterations=50)
 
-        vpc_groups = {}
-        for node, data in self.graph.nodes(data=True):
-            if data.get("type") == "security_group":
-                vpc_id = data.get("vpc_id", "Unknown VPC")
-                if vpc_id not in vpc_groups:
-                    vpc_groups[vpc_id] = []
-                vpc_groups[vpc_id].append(node)
+        vpc_groups, _ = self.group_nodes_by_vpc()
 
         # Position nodes by VPC
         spacing = 2.0
