@@ -6,6 +6,7 @@ project, including:
 - Cleaning up generated visualizations
 - Organizing build directories
 - Maintaining project structure integrity
+- Cleaning documentation build artifacts
 """
 
 import os
@@ -26,7 +27,13 @@ logger = logging.getLogger(__name__)
 BUILD_DIR = Path("build")
 CACHE_DIR = BUILD_DIR / "cache"
 MAPS_DIR = BUILD_DIR / "maps"
-TEMP_PATTERNS = ["*.pyc", "*.pyo", "*.pyd", "*.so", "*.log", "__pycache__"]
+DOCS_BUILD_DIR = Path("docs/_build")
+TEMP_PATTERNS = [
+    "*.pyc", "*.pyo", "*.pyd", "*.so", "*.log", "__pycache__",
+    "*.egg-info", "*.egg", "*.whl", "*.dist-info",
+    ".coverage", ".pytest_cache", ".tox",
+    "*.bak", "*.swp", "*.swo", "*~"
+]
 
 def setup_directories() -> None:
     """Create necessary directories if they don't exist."""
@@ -83,6 +90,15 @@ def clean_visualizations() -> None:
     else:
         logger.info("Visualizations directory does not exist")
 
+def clean_docs_build() -> None:
+    """Clean documentation build artifacts."""
+    if DOCS_BUILD_DIR.exists():
+        logger.info("Cleaning documentation build files...")
+        shutil.rmtree(DOCS_BUILD_DIR)
+        logger.info("Documentation build files cleaned")
+    else:
+        logger.info("Documentation build directory does not exist")
+
 def organize_build() -> None:
     """Organize build directory structure."""
     logger.info("Organizing build directory...")
@@ -91,7 +107,7 @@ def organize_build() -> None:
     # Move any stray files to appropriate directories
     for file in BUILD_DIR.glob("*"):
         if file.is_file():
-            if file.suffix in [".html", ".png"]:
+            if file.suffix in [".html", ".png", ".svg", ".pdf"]:
                 file.rename(MAPS_DIR / file.name)
             elif file.suffix in [".cache"]:
                 file.rename(CACHE_DIR / file.name)
@@ -110,7 +126,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--all",
         action="store_true",
-        help="Perform complete cleanup (temp files, cache, and visualizations)",
+        help="Perform complete cleanup (temp files, cache, visualizations, and docs)",
     )
     parser.add_argument(
         "--temp",
@@ -126,6 +142,11 @@ def parse_arguments() -> argparse.Namespace:
         "--viz",
         action="store_true",
         help="Clean visualization files only",
+    )
+    parser.add_argument(
+        "--docs",
+        action="store_true",
+        help="Clean documentation build files only",
     )
     parser.add_argument(
         "--organize",
@@ -151,7 +172,7 @@ def main() -> int:
 
     try:
         # If no specific option is chosen, default to --all
-        if not any([args.all, args.temp, args.cache, args.viz, args.organize]):
+        if not any([args.all, args.temp, args.cache, args.viz, args.docs, args.organize]):
             args.all = True
 
         if args.all or args.temp:
@@ -162,6 +183,9 @@ def main() -> int:
 
         if args.all or args.viz:
             clean_visualizations()
+
+        if args.all or args.docs:
+            clean_docs_build()
 
         if args.all or args.organize:
             organize_build()
