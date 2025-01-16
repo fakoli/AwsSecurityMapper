@@ -1,12 +1,11 @@
 """Automated cleanup script for AWS Security Group Mapper.
 
 This script provides automated cleanup functionality for the AWS Security Group Mapper
-project, including:
-- Removing temporary files and cached data
-- Cleaning up generated visualizations
-- Organizing build directories
-- Maintaining project structure integrity
-- Cleaning documentation build artifacts
+project, handling:
+- Temporary files and cached data removal
+- Build directory organization
+- Documentation cleanup
+- Project structure maintenance
 """
 
 import os
@@ -23,16 +22,26 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Default paths
+# Default paths and patterns
 BUILD_DIR = Path("build")
 CACHE_DIR = BUILD_DIR / "cache"
 MAPS_DIR = BUILD_DIR / "maps"
 DOCS_BUILD_DIR = Path("docs/_build")
 TEMP_PATTERNS = [
-    "*.pyc", "*.pyo", "*.pyd", "*.so", "*.log", "__pycache__",
-    "*.egg-info", "*.egg", "*.whl", "*.dist-info",
-    ".coverage", ".pytest_cache", ".tox",
-    "*.bak", "*.swp", "*.swo", "*~"
+    # Python temp files
+    "*.pyc", "*.pyo", "*.pyd", "*.so", "__pycache__",
+    # Package/build files
+    "*.egg-info", "*.egg", "*.whl", "*.dist-info", "build/", "dist/",
+    # Test/coverage files
+    ".coverage", ".pytest_cache", ".tox", "htmlcov/", "coverage.xml",
+    # IDE files
+    ".idea/", ".vscode/", "*.swp", "*.swo", "*~",
+    # Project specific
+    "*.log", "out/", ".aws-sg-mapper/",
+    # OS files
+    ".DS_Store", "Thumbs.db",
+    # Documentation
+    "_build/", ".doctrees/"
 ]
 
 def setup_directories() -> None:
@@ -41,7 +50,7 @@ def setup_directories() -> None:
         directory.mkdir(parents=True, exist_ok=True)
         logger.debug(f"Ensured directory exists: {directory}")
 
-def clean_temp_files(patterns: List[str] = TEMP_PATTERNS) -> None:
+def clean_temp_files(patterns: List[str] = None) -> None:
     """Remove temporary files matching specified patterns.
 
     Args:
@@ -108,9 +117,20 @@ def organize_build() -> None:
     for file in BUILD_DIR.glob("*"):
         if file.is_file():
             if file.suffix in [".html", ".png", ".svg", ".pdf"]:
-                file.rename(MAPS_DIR / file.name)
+                target = MAPS_DIR / file.name
+                file.rename(target)
+                logger.debug(f"Moved visualization file: {file.name}")
             elif file.suffix in [".cache"]:
-                file.rename(CACHE_DIR / file.name)
+                target = CACHE_DIR / file.name
+                file.rename(target)
+                logger.debug(f"Moved cache file: {file.name}")
+
+    # Ensure proper permissions
+    for directory in [BUILD_DIR, CACHE_DIR, MAPS_DIR]:
+        directory.chmod(0o755)
+        for file in directory.glob("*"):
+            if file.is_file():
+                file.chmod(0o644)
 
     logger.info("Build directory organized")
 
