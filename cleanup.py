@@ -54,9 +54,9 @@ def clean_temp_files(patterns: List[str] = None) -> None:
     """Remove temporary files matching specified patterns.
 
     Args:
-        patterns: List of glob patterns for temporary files
+        patterns: List of glob patterns for temporary files. If None, uses default patterns.
     """
-    if not patterns:
+    if patterns is None:
         patterns = TEMP_PATTERNS
 
     logger.info("Cleaning temporary files...")
@@ -64,12 +64,17 @@ def clean_temp_files(patterns: List[str] = None) -> None:
 
     for pattern in patterns:
         for path in Path().rglob(pattern):
-            if path.is_file():
-                path.unlink()
-                removed_files.add(str(path))
-            elif path.is_dir():
-                shutil.rmtree(path)
-                removed_files.add(str(path))
+            try:
+                if path.is_file():
+                    path.unlink()
+                    removed_files.add(str(path))
+                elif path.is_dir():
+                    shutil.rmtree(path)
+                    removed_files.add(str(path))
+            except PermissionError:
+                logger.warning(f"Permission denied: {path}")
+            except Exception as e:
+                logger.error(f"Error removing {path}: {str(e)}")
 
     if removed_files:
         logger.info(f"Removed {len(removed_files)} temporary files/directories")
@@ -82,9 +87,12 @@ def clean_cache() -> None:
     """Remove all cached data."""
     if CACHE_DIR.exists():
         logger.info("Cleaning cache directory...")
-        shutil.rmtree(CACHE_DIR)
-        CACHE_DIR.mkdir(parents=True, exist_ok=True)
-        logger.info("Cache directory cleaned")
+        try:
+            shutil.rmtree(CACHE_DIR)
+            CACHE_DIR.mkdir(parents=True, exist_ok=True)
+            logger.info("Cache directory cleaned")
+        except Exception as e:
+            logger.error(f"Error cleaning cache: {str(e)}")
     else:
         logger.info("Cache directory does not exist")
 
@@ -92,10 +100,14 @@ def clean_visualizations() -> None:
     """Remove generated visualization files."""
     if MAPS_DIR.exists():
         logger.info("Cleaning visualization files...")
-        for file in MAPS_DIR.glob("*"):
-            if file.is_file():
-                file.unlink()
-        logger.info("Visualization files cleaned")
+        try:
+            for file in MAPS_DIR.glob("*"):
+                if file.is_file():
+                    file.unlink()
+                    logger.debug(f"Removed visualization: {file.name}")
+            logger.info("Visualization files cleaned")
+        except Exception as e:
+            logger.error(f"Error cleaning visualizations: {str(e)}")
     else:
         logger.info("Visualizations directory does not exist")
 
@@ -103,8 +115,11 @@ def clean_docs_build() -> None:
     """Clean documentation build artifacts."""
     if DOCS_BUILD_DIR.exists():
         logger.info("Cleaning documentation build files...")
-        shutil.rmtree(DOCS_BUILD_DIR)
-        logger.info("Documentation build files cleaned")
+        try:
+            shutil.rmtree(DOCS_BUILD_DIR)
+            logger.info("Documentation build files cleaned")
+        except Exception as e:
+            logger.error(f"Error cleaning documentation build: {str(e)}")
     else:
         logger.info("Documentation build directory does not exist")
 
@@ -113,26 +128,32 @@ def organize_build() -> None:
     logger.info("Organizing build directory...")
     setup_directories()
 
-    # Move any stray files to appropriate directories
-    for file in BUILD_DIR.glob("*"):
-        if file.is_file():
-            if file.suffix in [".html", ".png", ".svg", ".pdf"]:
-                target = MAPS_DIR / file.name
-                file.rename(target)
-                logger.debug(f"Moved visualization file: {file.name}")
-            elif file.suffix in [".cache"]:
-                target = CACHE_DIR / file.name
-                file.rename(target)
-                logger.debug(f"Moved cache file: {file.name}")
-
-    # Ensure proper permissions
-    for directory in [BUILD_DIR, CACHE_DIR, MAPS_DIR]:
-        directory.chmod(0o755)
-        for file in directory.glob("*"):
+    try:
+        # Move any stray files to appropriate directories
+        for file in BUILD_DIR.glob("*"):
             if file.is_file():
-                file.chmod(0o644)
+                if file.suffix in [".html", ".png", ".svg", ".pdf"]:
+                    target = MAPS_DIR / file.name
+                    file.rename(target)
+                    logger.debug(f"Moved visualization file: {file.name}")
+                elif file.suffix in [".cache"]:
+                    target = CACHE_DIR / file.name
+                    file.rename(target)
+                    logger.debug(f"Moved cache file: {file.name}")
 
-    logger.info("Build directory organized")
+        # Ensure proper permissions
+        for directory in [BUILD_DIR, CACHE_DIR, MAPS_DIR]:
+            try:
+                directory.chmod(0o755)
+                for file in directory.glob("*"):
+                    if file.is_file():
+                        file.chmod(0o644)
+            except Exception as e:
+                logger.warning(f"Failed to set permissions for {directory}: {str(e)}")
+
+        logger.info("Build directory organized")
+    except Exception as e:
+        logger.error(f"Error organizing build directory: {str(e)}")
 
 def parse_arguments() -> argparse.Namespace:
     """Parse command line arguments.

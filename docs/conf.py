@@ -23,7 +23,9 @@ autodoc_mock_imports = ["numpy", "matplotlib", "plotly", "networkx", "boto3", "b
 templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
-html_theme = 'sphinx_rtd_theme'
+# Use alabaster theme (built-in with Sphinx)
+html_theme = 'alabaster'
+
 html_static_path = ['_static']
 
 # Custom CSS
