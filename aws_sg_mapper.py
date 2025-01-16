@@ -1,4 +1,15 @@
-"""AWS Security Group Mapper main module."""
+"""AWS Security Group Mapper main module.
+
+This module serves as the entry point for the AWS Security Group Mapper tool.
+It provides functionality to:
+- Parse command line arguments
+- Collect security group data from AWS
+- Generate relationship maps
+- Handle caching and error scenarios
+
+The tool supports both single and multi-region analysis, with options for
+focusing on specific security groups and generating per-group visualizations.
+"""
 
 import argparse
 import os
@@ -13,7 +24,18 @@ from utils import setup_logging, logger
 
 
 def parse_arguments():
-    """Parse command line arguments."""
+    """Parse command line arguments.
+
+    Returns:
+        argparse.Namespace: Parsed command line arguments containing:
+            - profiles: List of AWS profiles to analyze
+            - regions: List of AWS regions to analyze
+            - output: Output file path for the graph
+            - output_per_sg: Flag for generating per-security-group maps
+            - clear_cache: Flag for clearing cached data
+            - debug: Flag for enabling debug logging
+            - security_group_ids: Optional list of specific security groups to analyze
+    """
     parser = argparse.ArgumentParser(
         description="AWS Security Group Relationship Mapper"
     )
@@ -56,14 +78,23 @@ def collect_security_groups(
 ) -> List[dict]:
     """Collect security group data from specified profiles and regions.
 
+    This function fetches security group data from AWS, utilizing caching to reduce
+    API calls. It supports filtering by specific security group IDs and handles
+    both single and multi-region scenarios.
+
     Args:
         profiles: List of AWS profiles to query
         regions: List of AWS regions to query
-        cache_handler: Cache handler instance
+        cache_handler: Cache handler instance for managing AWS API response caching
         security_group_ids: Optional list of security group IDs to filter
 
     Returns:
-        List of security group data dictionaries
+        List[dict]: List of security group data dictionaries containing group details,
+                   permissions, and relationships
+
+    Note:
+        The function attempts to use cached data first, falling back to AWS API
+        calls only when necessary or when cache is invalid/missing.
     """
     all_security_groups = []
 
@@ -113,7 +144,21 @@ def collect_security_groups(
 def generate_sg_maps(
     security_groups: List[dict], base_output: str, output_per_sg: bool = False
 ) -> None:
-    """Generate security group relationship maps."""
+    """Generate security group relationship maps.
+
+    Creates visualization(s) of security group relationships, either as a single
+    comprehensive map or as individual maps for each security group.
+
+    Args:
+        security_groups: List of security group data dictionaries
+        base_output: Base output file path for generated maps
+        output_per_sg: If True, generates separate maps for each security group
+
+    Note:
+        Output files are placed in the build directory with appropriate subdirectories
+        created as needed. For per-security-group maps, the output filename includes
+        the security group ID.
+    """
     logger.info("Generating security group relationship graph(s)...")
     graph_generator = GraphGenerator()
 
@@ -152,7 +197,22 @@ def generate_sg_maps(
 
 
 def main():
-    """Main execution function."""
+    """Main execution function for AWS Security Group Mapper.
+
+    This function orchestrates the entire mapping process:
+    1. Parses command line arguments
+    2. Sets up logging based on debug flag
+    3. Initializes cache handler
+    4. Collects security group data
+    5. Generates visualization(s)
+
+    Returns:
+        int: 0 for successful execution, 1 for errors
+
+    Note:
+        The function handles all high-level exceptions and provides appropriate
+        logging, especially in debug mode.
+    """
     args = None
     try:
         args = parse_arguments()

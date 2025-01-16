@@ -23,6 +23,10 @@ args = "AWS SG Mapper Test"
 task = "workflow.run"
 args = "AWS SG Mapper Cleanup"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "AWS SG Mapper Debug"
+
 [[workflows.workflow]]
 name = "AWS SG Mapper"
 author = "agent"
@@ -53,6 +57,20 @@ args = "python aws_sg_mapper.py --profiles default --debug --clear-cache --outpu
 
 [[workflows.workflow]]
 name = "AWS SG Mapper Cleanup"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python aws_sg_mapper.py --profiles default --debug --clear-cache"
+
+[[workflows.workflow]]
+name = "AWS SG Mapper Debug"
 author = "agent"
 
 [workflows.workflow.metadata]
