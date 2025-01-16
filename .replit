@@ -27,6 +27,14 @@ args = "AWS SG Mapper Cleanup"
 task = "workflow.run"
 args = "AWS SG Mapper Debug"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Test Cleanup Script"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Generate Documentation"
+
 [[workflows.workflow]]
 name = "AWS SG Mapper"
 author = "agent"
@@ -82,6 +90,34 @@ task = "packager.installForAll"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python aws_sg_mapper.py --profiles default --debug --clear-cache"
+
+[[workflows.workflow]]
+name = "Test Cleanup Script"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python cleanup.py --debug --all"
+
+[[workflows.workflow]]
+name = "Generate Documentation"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python scripts/generate_docs.py"
 
 [deployment]
 run = ["sh", "-c", "python aws_sg_mapper.py --profiles default --debug --clear-cache"]

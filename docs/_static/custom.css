@@ -1,0 +1,52 @@
+/* Custom styles for AWS Security Group Mapper documentation */
+
+/* Override theme colors */
+:root {
+    --color-primary: #5B9BD5;
+    --color-secondary: #70AD47;
+    --color-warning: #FF6B6B;
+    --color-text: #404040;
+}
+
+/* Improve code block readability */
+div[class^="highlight"] pre {
+    padding: 1em;
+    border-radius: 4px;
+    background-color: #f8f9fa;
+}
+
+/* Make headings more prominent */
+h1, h2, h3, h4, h5, h6 {
+    color: var(--color-text);
+    font-weight: 600;
+    margin-top: 1.5em;
+    margin-bottom: 0.8em;
+}
+
+/* Style admonitions */
+.admonition {
+    padding: 1em;
+    margin: 1em 0;
+    border-left: 4px solid var(--color-primary);
+    background-color: #f8f9fa;
+}
+
+.admonition.warning {
+    border-left-color: var(--color-warning);
+}
+
+/* Improve table styling */
+table.docutils {
+    border-collapse: collapse;
+    margin: 1em 0;
+    width: 100%;
+}
+
+table.docutils th, table.docutils td {
+    padding: 0.5em;
+    border: 1px solid #ddd;
+}
+
+table.docutils th {
+    background-color: #f8f9fa;
+}
