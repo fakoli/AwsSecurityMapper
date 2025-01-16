@@ -42,6 +42,34 @@ Thank you for your interest in contributing to AWS Security Group Mapper! This d
 - Include integration tests for complex features
 - Maintain test coverage above 80%
 
+## 🧹 Project Maintenance
+
+### Using the Cleanup Script
+The project includes an automated cleanup script (`cleanup.py`) for maintaining a clean development environment:
+
+```bash
+# Full cleanup (recommended before commits)
+python cleanup.py --all
+
+# Clean specific components
+python cleanup.py --temp    # Clean temporary files
+python cleanup.py --cache   # Clean cached data
+python cleanup.py --viz     # Clean visualizations
+python cleanup.py --docs    # Clean documentation builds
+
+# Organize build directory
+python cleanup.py --organize
+
+# Debug mode for detailed logs
+python cleanup.py --debug --all
+```
+
+### Documentation Generation
+Generate documentation using:
+```bash
+python scripts/generate_docs.py
+```
+
 ## 🔄 Pull Request Process
 
 1. Create a new branch for your feature:
