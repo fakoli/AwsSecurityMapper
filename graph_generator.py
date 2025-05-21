@@ -46,13 +46,18 @@ class GraphGenerator:
             output_path: Path where the visualization should be saved
             title: Optional title for the visualization
         """
-        # Ensure build/maps directory exists
+        # Ensure the base output directory exists
         maps_dir = os.path.join("build", "maps")
         os.makedirs(maps_dir, exist_ok=True)
 
-        # Prepend build/maps directory if not already included
-        if not output_path.startswith(os.path.join("build", "maps")):
-            output_path = os.path.join(maps_dir, os.path.basename(output_path))
+        if os.path.isabs(output_path):
+            output_dir = os.path.dirname(output_path)
+        else:
+            if not output_path.startswith(os.path.join("build", "maps")):
+                output_path = os.path.join(maps_dir, os.path.basename(output_path))
+            output_dir = os.path.dirname(output_path)
+
+        os.makedirs(output_dir or maps_dir, exist_ok=True)
 
         # Adjust file extension based on visualizer
         if isinstance(self.visualizer, PlotlyVisualizer):
